@@ -301,7 +301,7 @@ with tab3:
         "This tab gives you a fast what-if detector. It is not a full anomaly model retraining pipeline; it is a practical threshold sandbox built on the log amounts your notebook already produced."
     )
 
-    det_df = attack_df.dropna(subset=["amount"]).copy()
+    det_df = filtered.dropna(subset=["amount"]).copy()
     if det_df.empty:
         st.info("No numeric amount data available for threshold analysis.")
     else:
