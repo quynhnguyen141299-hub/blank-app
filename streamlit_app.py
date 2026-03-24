@@ -925,8 +925,8 @@ with tab6:
     # Build edges from source_wallet → target_wallet
     net_df = attack_df.copy()
     # Fallback: if target_wallet is missing, use wallet_id as source, "CBDC_LEDGER" as target
-    net_df["src"] = net_df["source_wallet"].fillna(net_df["wallet_id"])
-    net_df["dst"] = net_df["target_wallet"].fillna("CBDC_LEDGER")
+    net_df["src"] = net_df["source_wallet"].fillna(net_df["wallet_id"]).astype(str)
+    net_df["dst"] = net_df["target_wallet"].fillna("CBDC_LEDGER").astype(str)
     edges = net_df.dropna(subset=["src"]).copy()
 
     if edges.empty:
@@ -948,7 +948,7 @@ with tab6:
         )
 
         # Build node set
-        all_nodes = list(set(edge_agg["src"].tolist() + edge_agg["dst"].tolist()))
+        all_nodes = [str(n) for n in set(edge_agg["src"].tolist() + edge_agg["dst"].tolist())]
         node_idx = {n: i for i, n in enumerate(all_nodes)}
 
         # Determine node risk: how many attack events touch this wallet
@@ -1031,7 +1031,7 @@ with tab6:
                 colorbar=dict(title="Attack<br>exposure"),
                 line=dict(width=1, color="white"),
             ),
-            text=[n[:12] for n in all_nodes],
+            text=[str(n)[:12] for n in all_nodes],
             textposition="top center",
             textfont=dict(size=9),
             hovertext=[
