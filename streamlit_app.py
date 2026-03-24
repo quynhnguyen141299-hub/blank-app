@@ -144,26 +144,43 @@ def load_logs(uploaded_file):
         df["asap_layer"].astype(str) if "asap_layer" in df.columns else "unknown"
     )
 
-    df["is_attack_event"] = (df["label"] == 1) | (
-        df["agent_id"].isin(RL_AGENTS)
-        & (
-            df["complexity"].notna()
-            | df["wallet_id"].notna()
-            | df["amount"].notna()
+    # Cast boolean / label columns to proper numeric types so .mean()/.sum() never
+    # hit TypeError on object-dtype columns.
+    df["ok"] = pd.to_numeric(df["ok"].map({True: 1, False: 0, "True": 1, "False": 0}), errors="coerce")
+    df["label"] = pd.to_numeric(df["label"], errors="coerce")
+    df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+    df["complexity"] = pd.to_numeric(df["complexity"], errors="coerce")
+    df["reward"] = pd.to_numeric(df["reward"], errors="coerce")
+    df["episode"] = pd.to_numeric(df["episode"], errors="coerce")
+
+    df["is_attack_event"] = (
+        (df["label"] == 1)
+        | (
+            df["agent_id"].isin(RL_AGENTS)
+            & (
+                df["complexity"].notna()
+                | df["wallet_id"].notna()
+                | df["amount"].notna()
+            )
         )
-    )
-    df["is_risk_check"] = df["ok"].notna() | df["process"].astype(str).str.contains(
-        "P5", na=False
-    )
+    ).astype(bool)
+
+    df["is_risk_check"] = (
+        df["ok"].notna()
+        | df["process"].astype(str).str.contains("P5", na=False)
+    ).astype(bool)
 
     return df
 
 
 def metric_delta(current, baseline):
-    if baseline in (None, 0) or pd.isna(baseline):
+    try:
+        if baseline in (None, 0) or pd.isna(baseline) or pd.isna(current):
+            return "n/a"
+        delta = float(current) - float(baseline)
+        return f"{delta:+.1%}"
+    except (TypeError, ValueError):
         return "n/a"
-    delta = current - baseline
-    return f"{delta:+.1%}"
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -235,7 +252,7 @@ mean_amount = (
     else 0.0
 )
 risk_checks = attack_df[attack_df["is_risk_check"]]
-passed_checks = risk_checks["ok"].eq(True).sum() if not risk_checks.empty else 0
+passed_checks = int(risk_checks["ok"].eq(1).sum()) if not risk_checks.empty else 0
 pass_rate = (passed_checks / len(risk_checks)) if len(risk_checks) else np.nan
 flagged_rate = (
     attack_df["amount"].ge(amount_threshold).mean()
@@ -405,7 +422,7 @@ with tab2:
         if not success_df.empty:
             success_summary = (
                 success_df.groupby("agent_id")["ok"]
-                .mean()
+                .mean(numeric_only=False)
                 .sort_values(ascending=False)
                 .reset_index(name="pass_rate")
             )
@@ -426,7 +443,7 @@ with tab2:
             rl_df.groupby("agent_id")
             .agg(
                 events=("agent_id", "size"),
-                attack_events=("is_attack_event", "sum"),
+                attack_events=("is_attack_event", lambda x: x.astype(int).sum()),
                 avg_amount=("amount", "mean"),
                 risk_check_pass_rate=("ok", "mean"),
             )
@@ -1086,7 +1103,7 @@ with tab7:
                 "computed as `amount × (1 if risk-check passed else −0.5)`."
             )
             strat_df["proxy_reward"] = strat_df["amount"].fillna(0) * np.where(
-                strat_df["ok"] == True, 1.0, -0.5  # noqa: E712
+                strat_df["ok"].fillna(0) == 1, 1.0, -0.5
             )
             reward_col = "proxy_reward"
         else:
@@ -1250,9 +1267,10 @@ with tab7:
                     if adf["amount"].notna().any()
                     else "—",
                 )
+                ok_vals = pd.to_numeric(adf["ok"], errors="coerce")
                 st.metric(
                     "Risk pass rate",
-                    f"{adf['ok'].mean():.1%}" if adf["ok"].notna().any() else "—",
+                    f"{ok_vals.mean():.1%}" if ok_vals.notna().any() else "—",
                 )
                 top_stride_agent = adf.explode("stride_tags")["stride_tags"]
                 top_stride_agent = top_stride_agent[top_stride_agent.notna()]
