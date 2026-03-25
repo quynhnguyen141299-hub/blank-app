@@ -6,6 +6,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from sklearn.preprocessing import LabelEncoder
 
 APP_NAME = "CBDC Sentinel: AI Attack & Detection Analytics"
 RL_AGENTS = ["Q-Learning", "DQN", "REINFORCE", "A2C"]
@@ -169,6 +170,22 @@ def load_logs(uploaded_file):
         df["ok"].notna()
         | df["process"].astype(str).str.contains("P5", na=False)
     ).astype(bool)
+
+    # ── V2 Feature Engineering (categorical + STRIDE one-hot) ────────────
+    _le_process = LabelEncoder()
+    _le_layer   = LabelEncoder()
+    df["process_enc"]    = _le_process.fit_transform(df["process"].fillna("unknown"))
+    df["asap_layer_enc"] = _le_layer.fit_transform(df["asap_layer"].fillna("unknown"))
+
+    _STRIDE_TAGS = [
+        "Spoofing", "Tampering", "Repudiation",
+        "Information Disclosure", "Denial of Service", "Elevation of Privilege",
+    ]
+    for _tag in _STRIDE_TAGS:
+        df[f"stride_{_tag.lower().replace(' ', '_')}"] = df["stride_tags"].apply(
+            lambda tags, t=_tag: 1 if t in tags else 0
+        )
+    df["stride_count"] = df["stride_tags"].apply(len)
 
     return df
 
@@ -537,13 +554,14 @@ with tab3:
         st.dataframe(curve_df.sort_values("threshold"), use_container_width=True)
 
         # ══════════════════════════════════════════════════════════════════
-        # NEW: ML Anomaly Scoring Section
+        # ML Anomaly Scoring — V2 Features (categorical + STRIDE)
         # ══════════════════════════════════════════════════════════════════
         st.markdown("---")
-        st.subheader("ML Anomaly Scoring")
+        st.subheader("ML Anomaly Scoring (V2)")
         st.caption(
-            "Scikit-learn models fitted on the filtered data. "
-            "Features: `amount`, `complexity` (where available)."
+            "V2 feature set: `amount` + process/ASAP-layer encoding + "
+            "STRIDE one-hot + `complexity` (where available). "
+            "All models are fitted on-the-fly to your filtered data."
         )
 
         try:
@@ -558,13 +576,31 @@ with tab3:
             )
 
             ml_df = det_df.copy()
-            feat_cols = ["amount"]
+
+            # ── V2 feature set ───────────────────────────────────────────
+            feat_cols = [
+                "amount",
+                "process_enc",
+                "asap_layer_enc",
+                "stride_count",
+                "stride_spoofing",
+                "stride_tampering",
+                "stride_repudiation",
+                "stride_information_disclosure",
+                "stride_denial_of_service",
+                "stride_elevation_of_privilege",
+            ]
             if ml_df["complexity"].notna().sum() > 5:
                 feat_cols.append("complexity")
+            # Keep only columns that exist in the data
+            feat_cols = [c for c in feat_cols if c in ml_df.columns]
+
             X_raw = ml_df[feat_cols].fillna(0).values
 
             scaler = StandardScaler()
             X = scaler.fit_transform(X_raw)
+
+            st.info(f"V2 feature set: **{len(feat_cols)}** features — {', '.join(feat_cols)}")
 
             # ── Z-Score ──────────────────────────────────────────────────
             zscore_sensitivity = st.slider(
