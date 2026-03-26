@@ -228,79 +228,119 @@ amount_threshold = st.sidebar.slider(
     help="A simple interactive threshold to estimate which payment amounts would be flagged.",
 )
 
-if uploaded_file is None:
-    st.info(
-        "Upload the CSV exported from your notebook to activate the dashboard.\n\n"
-        "Expected columns include: `ts`, `process`, `asap_layer`, `stride_tags`, `details`."
-    )
-    st.stop()
+has_csv = uploaded_file is not None
 
-logs = load_logs(uploaded_file)
-filtered = logs.copy()
+if has_csv:
+    logs = load_logs(uploaded_file)
+    filtered = logs.copy()
 
-if selected_agents:
-    agent_mask = filtered["agent_id"].isin(selected_agents)
-    if show_benign:
-        agent_mask = agent_mask | filtered["agent_id"].isin(
-            ["benign", "system"]
-        ) | filtered["agent_id"].isna()
-    filtered = filtered[agent_mask]
+    if selected_agents:
+        agent_mask = filtered["agent_id"].isin(selected_agents)
+        if show_benign:
+            agent_mask = agent_mask | filtered["agent_id"].isin(
+                ["benign", "system"]
+            ) | filtered["agent_id"].isna()
+        filtered = filtered[agent_mask]
 
-if attack_only:
-    filtered = filtered[filtered["is_attack_event"]]
+    if attack_only:
+        filtered = filtered[filtered["is_attack_event"]]
 
-if filtered.empty:
-    st.warning("No rows matched the current filter settings.")
-    st.stop()
-
-attack_df = filtered[filtered["is_attack_event"]].copy()
-rl_df = filtered[filtered["agent_id"].isin(RL_AGENTS)].copy()
+    csv_empty = filtered.empty
+    if not csv_empty:
+        attack_df = filtered[filtered["is_attack_event"]].copy()
+        rl_df = filtered[filtered["agent_id"].isin(RL_AGENTS)].copy()
+    else:
+        attack_df = pd.DataFrame()
+        rl_df = pd.DataFrame()
+else:
+    _empty_cols = {
+        "ts": pd.Series(dtype="datetime64[ns]"),
+        "process": pd.Series(dtype="str"),
+        "asap_layer": pd.Series(dtype="str"),
+        "stride_tags": pd.Series(dtype="object"),
+        "details": pd.Series(dtype="object"),
+        "agent_id": pd.Series(dtype="str"),
+        "amount": pd.Series(dtype="float64"),
+        "label": pd.Series(dtype="float64"),
+        "ok": pd.Series(dtype="float64"),
+        "complexity": pd.Series(dtype="float64"),
+        "reward": pd.Series(dtype="float64"),
+        "episode": pd.Series(dtype="float64"),
+        "wallet_id": pd.Series(dtype="str"),
+        "action": pd.Series(dtype="str"),
+        "target_wallet": pd.Series(dtype="str"),
+        "source_wallet": pd.Series(dtype="str"),
+        "is_attack_event": pd.Series(dtype="bool"),
+        "is_risk_check": pd.Series(dtype="bool"),
+        "process_enc": pd.Series(dtype="int64"),
+        "asap_layer_enc": pd.Series(dtype="int64"),
+        "stride_spoofing": pd.Series(dtype="int64"),
+        "stride_tampering": pd.Series(dtype="int64"),
+        "stride_repudiation": pd.Series(dtype="int64"),
+        "stride_information_disclosure": pd.Series(dtype="int64"),
+        "stride_denial_of_service": pd.Series(dtype="int64"),
+        "stride_elevation_of_privilege": pd.Series(dtype="int64"),
+        "stride_count": pd.Series(dtype="int64"),
+    }
+    _empty_df = pd.DataFrame(_empty_cols)
+    logs = _empty_df.copy()
+    filtered = _empty_df.copy()
+    attack_df = _empty_df.copy()
+    rl_df = _empty_df.copy()
+    csv_empty = True
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TOP-LEVEL KPI METRICS
 # ═══════════════════════════════════════════════════════════════════════════
-col1, col2, col3, col4 = st.columns(4)
+if has_csv and not csv_empty:
+    col1, col2, col3, col4 = st.columns(4)
 
-n_attack_events = int(attack_df.shape[0])
-mean_amount = (
-    float(attack_df["amount"].dropna().mean())
-    if attack_df["amount"].notna().any()
-    else 0.0
-)
-risk_checks = attack_df[attack_df["is_risk_check"]]
-passed_checks = int(risk_checks["ok"].eq(1).sum()) if not risk_checks.empty else 0
-pass_rate = (passed_checks / len(risk_checks)) if len(risk_checks) else np.nan
-flagged_rate = (
-    attack_df["amount"].ge(amount_threshold).mean()
-    if attack_df["amount"].notna().any()
-    else np.nan
-)
+    n_attack_events = int(attack_df.shape[0])
+    mean_amount = (
+        float(attack_df["amount"].dropna().mean())
+        if attack_df["amount"].notna().any()
+        else 0.0
+    )
+    risk_checks = attack_df[attack_df["is_risk_check"]]
+    passed_checks = int(risk_checks["ok"].eq(1).sum()) if not risk_checks.empty else 0
+    pass_rate = (passed_checks / len(risk_checks)) if len(risk_checks) else np.nan
+    flagged_rate = (
+        attack_df["amount"].ge(amount_threshold).mean()
+        if attack_df["amount"].notna().any()
+        else np.nan
+    )
 
-baseline_df = logs[(logs["agent_id"].isin(RL_AGENTS)) & (logs["is_attack_event"])]
-baseline_flagged = (
-    baseline_df["amount"].ge(amount_threshold).mean()
-    if baseline_df["amount"].notna().any()
-    else np.nan
-)
+    baseline_df = logs[(logs["agent_id"].isin(RL_AGENTS)) & (logs["is_attack_event"])]
+    baseline_flagged = (
+        baseline_df["amount"].ge(amount_threshold).mean()
+        if baseline_df["amount"].notna().any()
+        else np.nan
+    )
 
-col1.metric("Attack-related events", f"{n_attack_events:,}")
-col2.metric("Average attack amount", f"{mean_amount:,.1f}")
-col3.metric(
-    "Risk-check pass rate",
-    "n/a" if pd.isna(pass_rate) else f"{pass_rate:.1%}",
-)
-col4.metric(
-    f"Flagged at threshold >= {amount_threshold}",
-    "n/a" if pd.isna(flagged_rate) else f"{flagged_rate:.1%}",
-    metric_delta(flagged_rate, baseline_flagged),
-)
+    col1.metric("Attack-related events", f"{n_attack_events:,}")
+    col2.metric("Average attack amount", f"{mean_amount:,.1f}")
+    col3.metric(
+        "Risk-check pass rate",
+        "n/a" if pd.isna(pass_rate) else f"{pass_rate:.1%}",
+    )
+    col4.metric(
+        f"Flagged at threshold >= {amount_threshold}",
+        "n/a" if pd.isna(flagged_rate) else f"{flagged_rate:.1%}",
+        metric_delta(flagged_rate, baseline_flagged),
+    )
+elif not has_csv:
+    st.info(
+        "Upload the CSV exported from your notebook to activate simulation tabs.\n\n"
+        "The **CBDC Architecture**, **Threat Catalogue**, **Adversary Profiles**, "
+        "and **Risk Register** tabs are available without CSV data."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TABS
 # ═══════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
     [
         "System Overview",
         "Agent Behavior",
@@ -309,7 +349,15 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         "Attack Replay",
         "Network Graph",
         "Agent Strategy",
+        "CBDC Architecture",
+        "Threat Catalogue",
+        "Adversary Profiles",
+        "Risk Register",
     ]
+)
+
+_CSV_REQUIRED_MSG = (
+    "Upload a CSV file using the sidebar to activate this tab."
 )
 
 
@@ -1314,6 +1362,908 @@ with tab7:
                     st.metric("Top STRIDE", top_stride_agent.value_counts().idxmax())
                 cum_r = adf[reward_col].fillna(0).sum()
                 st.metric("Total reward", f"{cum_r:,.1f}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# EMBEDDED REFERENCE DATA FOR CBDC THREAT MODEL
+# ═══════════════════════════════════════════════════════════════════════════
+
+ASAP_LAYERS = {
+    "Platform": {
+        "order": 0,
+        "color": "#636EFA",
+        "functions": "Execution, Storage/Ledger, Communication, Consensus, Identification, Authentication, Authorization",
+        "components": ["Core Ledger", "Consensus Nodes", "Settlement Engine", "Key Management Service (KMS)"],
+        "threats": "Consensus mechanism exploits, ledger tampering, 51% attacks, smart contract vulnerabilities, key compromise",
+        "tier": "Central Bank",
+    },
+    "Asset": {
+        "order": 1,
+        "color": "#EF553B",
+        "functions": "Issuance (minting), Transfer, Redemption (burning), Access Control, State Representation",
+        "components": ["Minting Authority", "Token/Account State", "UTXO Store", "Asset Lifecycle Manager"],
+        "threats": "Double-spending, counterfeiting/unauthorized minting, replay attacks, state manipulation",
+        "tier": "Central Bank",
+    },
+    "Service": {
+        "order": 2,
+        "color": "#00CC96",
+        "functions": "Asset Exchange, DVP/PVP, Conditional Transfer, Lending, Collateralisation, Programmable Lock, Escrow, Identity, Admin, Behavioural Constraints",
+        "components": ["Payment Processor", "AML/CFT Engine", "Smart Contract Runtime", "Interoperability Bridge", "Offline Payment Module", "Oracle Interface"],
+        "threats": "Smart contract exploits, oracle manipulation, AML bypass, bridge attacks, offline replay",
+        "tier": "Both",
+    },
+    "Access": {
+        "order": 3,
+        "color": "#AB63FA",
+        "functions": "Presentation, Credential Management, Formatting, Client-side Processing, Translation, User Authentication, Data Exchange",
+        "components": ["Wallet Providers", "Mobile Apps", "Web Portals", "API Gateways", "Aggregators", "KYC/IAM System"],
+        "threats": "Wallet compromise, phishing/credential theft, API abuse, MitM attacks, SIM swap, malicious wallet apps",
+        "tier": "Intermediary / Retail",
+    },
+}
+
+COMPONENT_DETAILS = {
+    "Core Ledger": {
+        "layer": "Platform", "tier": "Central Bank",
+        "functions": "Immutable record of all CBDC transactions; maintains global state of balances and ownership.",
+        "attack_surface": "Direct ledger manipulation, Byzantine faults, storage corruption, unauthorized state changes.",
+        "stride": ["Tampering", "Repudiation", "Denial of Service"],
+        "mitre": ["T1485", "CBDC-NEW-10"],
+        "connected": ["Consensus Nodes", "Settlement Engine", "Minting Authority"],
+    },
+    "Consensus Nodes": {
+        "layer": "Platform", "tier": "Central Bank",
+        "functions": "Validate transactions and maintain agreement on ledger state across distributed nodes.",
+        "attack_surface": "51% attacks, Sybil attacks, consensus delay exploitation, node compromise.",
+        "stride": ["Tampering", "Denial of Service", "Spoofing"],
+        "mitre": ["CBDC-NEW-04", "CBDC-NEW-10", "T1489"],
+        "connected": ["Core Ledger", "Settlement Engine"],
+    },
+    "Settlement Engine": {
+        "layer": "Platform", "tier": "Central Bank",
+        "functions": "Processes final settlement of wholesale and retail transactions; interfaces with RTGS.",
+        "attack_surface": "Settlement manipulation, timing attacks, race conditions in finality.",
+        "stride": ["Tampering", "Denial of Service"],
+        "mitre": ["T1489", "T1485"],
+        "connected": ["Core Ledger", "Consensus Nodes", "Payment Processor"],
+    },
+    "Key Management Service (KMS)": {
+        "layer": "Platform", "tier": "Central Bank",
+        "functions": "Generates, stores, rotates, and manages cryptographic keys for signing and encryption.",
+        "attack_surface": "Key extraction via side-channel, insider theft, HSM bypass, weak key generation.",
+        "stride": ["Information Disclosure", "Elevation of Privilege", "Tampering"],
+        "mitre": ["CBDC-NEW-07", "T1068"],
+        "connected": ["Core Ledger", "Minting Authority", "Wallet Providers"],
+    },
+    "Minting Authority": {
+        "layer": "Asset", "tier": "Central Bank",
+        "functions": "Controls CBDC issuance (minting) and destruction (burning); enforces monetary policy.",
+        "attack_surface": "Unauthorized minting, insider abuse of issuance controls, policy bypass.",
+        "stride": ["Elevation of Privilege", "Tampering"],
+        "mitre": ["CBDC-NEW-11", "T1098"],
+        "connected": ["Core Ledger", "Asset Lifecycle Manager", "Token/Account State"],
+    },
+    "Token/Account State": {
+        "layer": "Asset", "tier": "Central Bank",
+        "functions": "Tracks current ownership, balances, and token metadata for all CBDC units.",
+        "attack_surface": "State manipulation, double-spend via state forking, balance inflation.",
+        "stride": ["Tampering", "Repudiation"],
+        "mitre": ["CBDC-NEW-10", "T1070"],
+        "connected": ["Core Ledger", "UTXO Store", "Minting Authority"],
+    },
+    "UTXO Store": {
+        "layer": "Asset", "tier": "Central Bank",
+        "functions": "Manages unspent transaction outputs for token-based CBDC models.",
+        "attack_surface": "UTXO replay, double-spend via unspent output reuse.",
+        "stride": ["Tampering", "Spoofing"],
+        "mitre": ["CBDC-NEW-10", "CBDC-NEW-12"],
+        "connected": ["Token/Account State", "Core Ledger"],
+    },
+    "Asset Lifecycle Manager": {
+        "layer": "Asset", "tier": "Central Bank",
+        "functions": "Orchestrates the full lifecycle: issuance → circulation → redemption of CBDC tokens.",
+        "attack_surface": "Lifecycle bypass allowing tokens to skip validation stages.",
+        "stride": ["Tampering", "Elevation of Privilege"],
+        "mitre": ["T1098", "CBDC-NEW-11"],
+        "connected": ["Minting Authority", "Token/Account State", "Payment Processor"],
+    },
+    "Payment Processor": {
+        "layer": "Service", "tier": "Both",
+        "functions": "Routes and processes retail and wholesale payment transactions.",
+        "attack_surface": "Transaction manipulation, routing exploits, fee bypass.",
+        "stride": ["Tampering", "Spoofing", "Denial of Service"],
+        "mitre": ["T1036", "CBDC-NEW-06", "T1489"],
+        "connected": ["Settlement Engine", "AML/CFT Engine", "Wallet Providers"],
+    },
+    "AML/CFT Engine": {
+        "layer": "Service", "tier": "Both",
+        "functions": "Screens transactions for anti-money laundering and counter-terrorism financing compliance.",
+        "attack_surface": "Rule evasion via structuring, false negative injection, threshold gaming.",
+        "stride": ["Tampering", "Spoofing", "Repudiation"],
+        "mitre": ["CBDC-NEW-06", "T1036"],
+        "connected": ["Payment Processor", "KYC/IAM System", "Oracle Interface"],
+    },
+    "Smart Contract Runtime": {
+        "layer": "Service", "tier": "Both",
+        "functions": "Executes programmable logic for conditional payments, escrow, and automated compliance.",
+        "attack_surface": "Reentrancy, logic bombs, gas manipulation, malicious contract deployment.",
+        "stride": ["Tampering", "Elevation of Privilege"],
+        "mitre": ["T1059", "CBDC-NEW-02"],
+        "connected": ["Core Ledger", "Payment Processor", "Oracle Interface"],
+    },
+    "Interoperability Bridge": {
+        "layer": "Service", "tier": "Both",
+        "functions": "Enables cross-platform and cross-border CBDC transactions.",
+        "attack_surface": "Bridge exploits, cross-chain replay, liquidity drain.",
+        "stride": ["Tampering", "Spoofing", "Information Disclosure"],
+        "mitre": ["CBDC-NEW-09", "T1021"],
+        "connected": ["Payment Processor", "Settlement Engine"],
+    },
+    "Offline Payment Module": {
+        "layer": "Service", "tier": "Intermediary / Retail",
+        "functions": "Enables CBDC transactions without network connectivity using stored value.",
+        "attack_surface": "Offline token replay, double-spend in disconnected mode, delayed reconciliation exploits.",
+        "stride": ["Spoofing", "Repudiation", "Tampering"],
+        "mitre": ["CBDC-NEW-12", "CBDC-NEW-10"],
+        "connected": ["Wallet Providers", "Payment Processor"],
+    },
+    "Oracle Interface": {
+        "layer": "Service", "tier": "Both",
+        "functions": "Feeds external data (exchange rates, compliance lists) into smart contracts and AML engines.",
+        "attack_surface": "Oracle manipulation, data poisoning, feed spoofing.",
+        "stride": ["Tampering", "Spoofing"],
+        "mitre": ["CBDC-NEW-03"],
+        "connected": ["Smart Contract Runtime", "AML/CFT Engine"],
+    },
+    "Wallet Providers": {
+        "layer": "Access", "tier": "Intermediary / Retail",
+        "functions": "Provide end-user wallet applications for storing and transacting CBDC.",
+        "attack_surface": "Malicious wallet apps, SDK backdoors, supply chain compromise.",
+        "stride": ["Spoofing", "Tampering", "Information Disclosure"],
+        "mitre": ["CBDC-NEW-01", "T1566", "T1110"],
+        "connected": ["API Gateways", "KYC/IAM System", "Payment Processor"],
+    },
+    "Mobile Apps": {
+        "layer": "Access", "tier": "Intermediary / Retail",
+        "functions": "Native mobile applications for CBDC wallet access and transaction management.",
+        "attack_surface": "App tampering, reverse engineering, credential theft, MitM on mobile.",
+        "stride": ["Spoofing", "Tampering", "Information Disclosure"],
+        "mitre": ["CBDC-NEW-01", "T1557", "T1110"],
+        "connected": ["Wallet Providers", "API Gateways"],
+    },
+    "Web Portals": {
+        "layer": "Access", "tier": "Intermediary / Retail",
+        "functions": "Browser-based interfaces for CBDC management by intermediaries and end-users.",
+        "attack_surface": "XSS, CSRF, session hijacking, credential phishing.",
+        "stride": ["Spoofing", "Tampering", "Information Disclosure"],
+        "mitre": ["T1190", "T1566"],
+        "connected": ["API Gateways", "KYC/IAM System"],
+    },
+    "API Gateways": {
+        "layer": "Access", "tier": "Both",
+        "functions": "Central entry point for all API calls; handles rate limiting, authentication, routing.",
+        "attack_surface": "API abuse, injection attacks, DDoS, authentication bypass.",
+        "stride": ["Denial of Service", "Spoofing", "Elevation of Privilege"],
+        "mitre": ["T1190", "T1595", "T1489"],
+        "connected": ["Wallet Providers", "Payment Processor", "KYC/IAM System"],
+    },
+    "Aggregators": {
+        "layer": "Access", "tier": "Intermediary / Retail",
+        "functions": "Third-party services that aggregate multiple wallet and payment providers.",
+        "attack_surface": "Supply chain compromise, data aggregation abuse, API key theft.",
+        "stride": ["Information Disclosure", "Tampering"],
+        "mitre": ["T1005", "T1119"],
+        "connected": ["API Gateways", "Wallet Providers"],
+    },
+    "KYC/IAM System": {
+        "layer": "Access", "tier": "Both",
+        "functions": "Manages identity verification, KYC compliance, and access management.",
+        "attack_surface": "Identity fraud, credential stuffing, synthetic identity, PII harvesting.",
+        "stride": ["Spoofing", "Information Disclosure", "Repudiation"],
+        "mitre": ["T1078", "T1136", "T1119", "T1589"],
+        "connected": ["Wallet Providers", "AML/CFT Engine", "API Gateways"],
+    },
+}
+
+MITRE_TECHNIQUES = pd.DataFrame([
+    {"tactic": "Reconnaissance", "tactic_id": "TA0043", "technique_id": "T1595", "technique_name": "Active Scanning", "cbdc_application": "Scanning CBDC API endpoints for vulnerabilities", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime, Hacktivist", "is_cbdc_new": False, "example_scenario": "Attacker scans API gateway endpoints to discover unprotected admin interfaces.", "controls": "Rate limiting, WAF, API authentication, endpoint obfuscation"},
+    {"tactic": "Reconnaissance", "tactic_id": "TA0043", "technique_id": "T1592", "technique_name": "Gather Victim Host Info", "cbdc_application": "Profiling wallet software versions", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Fingerprinting wallet app versions to identify known vulnerabilities.", "controls": "Version obfuscation, runtime integrity checks"},
+    {"tactic": "Reconnaissance", "tactic_id": "TA0043", "technique_id": "T1589", "technique_name": "Gather Victim Identity", "cbdc_application": "Mapping wallet addresses to real identities", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Correlating on-chain CBDC transactions with social media to de-anonymize users.", "controls": "Privacy-preserving design, address rotation, zero-knowledge proofs"},
+    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1566", "technique_name": "Phishing", "cbdc_application": "Credential harvesting for wallet/intermediary access", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Phishing emails impersonating CBDC wallet provider to steal login credentials.", "controls": "MFA, user awareness training, email filtering, domain monitoring"},
+    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1190", "technique_name": "Exploit Public-Facing Application", "cbdc_application": "Exploiting API gateway vulnerabilities", "target_layer": "Access", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime, Hacktivist", "is_cbdc_new": False, "example_scenario": "Exploiting unpatched API gateway to gain unauthorized access to backend services.", "controls": "WAF, regular patching, penetration testing, input validation"},
+    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1078", "technique_name": "Valid Accounts", "cbdc_application": "Using compromised intermediary credentials", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Malicious Insider, Organised Crime", "is_cbdc_new": False, "example_scenario": "Using stolen credentials of a commercial bank operator to access wholesale network.", "controls": "MFA, privileged access management, behavioral analytics, session monitoring"},
+    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "CBDC-NEW-01", "technique_name": "Malicious Wallet Distribution", "cbdc_application": "Distributing trojanised wallet apps", "target_layer": "Access", "stride": "Tampering", "adversaries": "Organised Crime, Compromised Third-Party", "is_cbdc_new": True, "example_scenario": "Publishing a fake CBDC wallet app on app stores that steals private keys.", "controls": "App store verification, code signing, wallet attestation, supply chain security"},
+    {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "T1059", "technique_name": "Command and Scripting", "cbdc_application": "Exploiting smart contract execution", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Injecting malicious code into smart contract execution to redirect funds.", "controls": "Formal verification, code auditing, execution sandboxing, gas limits"},
+    {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "CBDC-NEW-02", "technique_name": "Malicious Smart Contract Deployment", "cbdc_application": "Deploying contracts that drain funds", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Deploying a contract with hidden reentrancy vulnerability to drain escrow funds.", "controls": "Contract whitelisting, formal verification, deployment approvals, upgrade controls"},
+    {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "CBDC-NEW-03", "technique_name": "Oracle Data Injection", "cbdc_application": "Feeding false data to price/state oracles", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Manipulating exchange rate oracle to profit from cross-border CBDC transactions.", "controls": "Multiple oracle sources, median aggregation, anomaly detection, trusted execution environments"},
+    {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "T1098", "technique_name": "Account Manipulation", "cbdc_application": "Modifying intermediary access controls", "target_layer": "Access", "stride": "Elevation of Privilege", "adversaries": "Malicious Insider, Nation-State", "is_cbdc_new": False, "example_scenario": "Modifying role assignments to elevate retail operator to wholesale access level.", "controls": "Role-based access control, audit logging, separation of duties, periodic access reviews"},
+    {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "T1136", "technique_name": "Create Account", "cbdc_application": "Creating fraudulent wallet identities", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Creating synthetic identities to open multiple wallets for money laundering.", "controls": "Enhanced KYC, biometric verification, identity graph analysis, velocity checks"},
+    {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "CBDC-NEW-04", "technique_name": "Consensus Node Infiltration", "cbdc_application": "Gaining persistent access to validator nodes", "target_layer": "Platform", "stride": "Tampering", "adversaries": "Nation-State", "is_cbdc_new": True, "example_scenario": "Compromising a validator node to persistently influence consensus outcomes.", "controls": "Node integrity monitoring, hardware attestation, validator rotation, Byzantine fault tolerance"},
+    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "T1068", "technique_name": "Exploitation for Privilege Escalation", "cbdc_application": "Escalating from retail to wholesale access", "target_layer": "Platform", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Exploiting a vulnerability to escalate from intermediary access to central bank tier.", "controls": "Network segmentation, tier isolation, least privilege, vulnerability management"},
+    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "CBDC-NEW-05", "technique_name": "Intermediary Role Escalation", "cbdc_application": "Exploiting two-tier boundary to gain central bank tier access", "target_layer": "Service", "stride": "Elevation of Privilege", "adversaries": "Organised Crime, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Exploiting misconfigured API to access central bank minting functions from retail tier.", "controls": "Strict tier boundary enforcement, API gateway policies, zero-trust architecture"},
+    {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "T1070", "technique_name": "Indicator Removal", "cbdc_application": "Erasing transaction traces", "target_layer": "Platform", "stride": "Repudiation", "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Deleting or modifying audit logs to hide unauthorized minting activity.", "controls": "Immutable audit logs, write-once storage, log integrity verification, SIEM monitoring"},
+    {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "T1036", "technique_name": "Masquerading", "cbdc_application": "Disguising attack transactions as legitimate payments", "target_layer": "Service", "stride": "Spoofing", "adversaries": "Organised Crime, Compromised Third-Party", "is_cbdc_new": False, "example_scenario": "Disguising money laundering transactions as legitimate merchant payments.", "controls": "Behavioral analytics, transaction pattern analysis, anomaly detection"},
+    {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "CBDC-NEW-06", "technique_name": "Transaction Structuring", "cbdc_application": "Splitting amounts below AML thresholds (smurfing)", "target_layer": "Service", "stride": "Tampering", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": True, "example_scenario": "Breaking large transfers into many small transactions to evade AML detection rules.", "controls": "Aggregate monitoring, velocity checks, graph-based analytics, adaptive thresholds"},
+    {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "T1110", "technique_name": "Brute Force", "cbdc_application": "Attacking wallet PINs/passwords", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Brute-forcing wallet PINs to gain access to user funds.", "controls": "Account lockout, rate limiting, biometric authentication, hardware tokens"},
+    {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "T1557", "technique_name": "Adversary-in-the-Middle", "cbdc_application": "Intercepting wallet-to-intermediary communications", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "MitM attack on wallet-to-bank API to intercept transaction signing keys.", "controls": "Certificate pinning, mutual TLS, end-to-end encryption, channel binding"},
+    {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "CBDC-NEW-07", "technique_name": "Private Key Extraction", "cbdc_application": "Side-channel attacks on hardware wallet/KMS", "target_layer": "Platform", "stride": "Information Disclosure", "adversaries": "Nation-State", "is_cbdc_new": True, "example_scenario": "Using power analysis side-channel attack to extract KMS master key from HSM.", "controls": "Side-channel resistant HSMs, key sharding, multi-party computation, regular key rotation"},
+    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "T1021", "technique_name": "Remote Services", "cbdc_application": "Moving between intermediary systems", "target_layer": "Service", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Using compromised intermediary credentials to pivot to other financial institutions.", "controls": "Network segmentation, micro-segmentation, just-in-time access, behavioral monitoring"},
+    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "CBDC-NEW-08", "technique_name": "Cross-Tier Pivot", "cbdc_application": "Leveraging retail compromise to access wholesale network", "target_layer": "Platform", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Pivoting from compromised retail wallet provider to wholesale settlement network.", "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture"},
+    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "CBDC-NEW-09", "technique_name": "Bridge Exploitation", "cbdc_application": "Attacking interoperability bridges to reach other CBDC platforms", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Exploiting cross-border CBDC bridge to drain liquidity from foreign CBDC system.", "controls": "Bridge security audits, rate limiting, multi-sig validation, circuit breakers"},
+    {"tactic": "Collection", "tactic_id": "TA0009", "technique_id": "T1005", "technique_name": "Data from Local System", "cbdc_application": "Harvesting wallet transaction history", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Extracting complete transaction history from compromised wallet application.", "controls": "Data encryption at rest, secure enclaves, minimal data retention, access logging"},
+    {"tactic": "Collection", "tactic_id": "TA0009", "technique_id": "T1119", "technique_name": "Automated Collection", "cbdc_application": "Bulk extraction of PII from KYC databases", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Automated scraping of KYC database to harvest personal identity documents.", "controls": "Data loss prevention, query rate limiting, database activity monitoring, encryption"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "T1485", "technique_name": "Data Destruction", "cbdc_application": "Destroying ledger records", "target_layer": "Platform", "stride": "Denial of Service", "adversaries": "Nation-State, Hacktivist", "is_cbdc_new": False, "example_scenario": "Wiping or corrupting ledger data to disrupt national payment infrastructure.", "controls": "Immutable ledger design, geo-distributed backups, Byzantine fault tolerance, disaster recovery"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "T1489", "technique_name": "Service Stop", "cbdc_application": "DDoS on CBDC payment infrastructure", "target_layer": "Access", "stride": "Denial of Service", "adversaries": "Hacktivist, Nation-State", "is_cbdc_new": False, "example_scenario": "Massive DDoS campaign against API gateways to halt CBDC payments nationwide.", "controls": "DDoS mitigation, CDN, traffic scrubbing, auto-scaling, geographic distribution"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-10", "technique_name": "Double Spending", "cbdc_application": "Exploiting consensus delays for double-spend", "target_layer": "Asset", "stride": "Tampering", "adversaries": "Organised Crime, Nation-State", "is_cbdc_new": True, "example_scenario": "Racing two conflicting transactions during consensus delay window to spend same funds twice.", "controls": "Finality guarantees, consensus speed optimization, double-spend proofs, real-time monitoring"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-11", "technique_name": "Unauthorized Minting", "cbdc_application": "Exploiting issuance controls to create counterfeit CBDC", "target_layer": "Asset", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Insider exploiting minting authority access to create unauthorized CBDC tokens.", "controls": "Multi-party authorization, hardware security modules, issuance audit trails, separation of duties"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-12", "technique_name": "Offline Payment Replay", "cbdc_application": "Replaying offline payment tokens", "target_layer": "Service", "stride": "Spoofing", "adversaries": "End-User Fraud, Organised Crime", "is_cbdc_new": True, "example_scenario": "Copying and replaying offline payment tokens to spend the same value multiple times.", "controls": "Token uniqueness enforcement, reconciliation on reconnect, hardware token storage, expiry mechanisms"},
+])
+
+ADVERSARIES = {
+    "Nation-State": {
+        "capability": 9, "resources": 10, "sophistication": 9, "persistence": 10, "motivation_score": 9,
+        "motivation": "Espionage / Disruption",
+        "primary_targets": ["Platform Layer (consensus, ledger)", "Service Layer (bridges)"],
+        "stride_focus": ["Tampering", "Information Disclosure", "Denial of Service"],
+        "top_components": ["Consensus Nodes", "Core Ledger", "Interoperability Bridge"],
+        "top_techniques": ["CBDC-NEW-04", "CBDC-NEW-07", "CBDC-NEW-08"],
+        "example": "Targeting consensus nodes to disrupt national payment infrastructure",
+        "layer_scores": {"Platform": 3, "Asset": 2, "Service": 3, "Access": 1},
+    },
+    "Organised Crime": {
+        "capability": 7, "resources": 7, "sophistication": 7, "persistence": 7, "motivation_score": 8,
+        "motivation": "Financial gain",
+        "primary_targets": ["Asset Layer (double-spend)", "Service Layer (AML bypass)", "Access Layer (wallet theft)"],
+        "stride_focus": ["Spoofing", "Tampering", "Elevation of Privilege"],
+        "top_components": ["Payment Processor", "AML/CFT Engine", "Wallet Providers"],
+        "top_techniques": ["CBDC-NEW-06", "CBDC-NEW-10", "T1566"],
+        "example": "Structuring transactions to launder proceeds through CBDC",
+        "layer_scores": {"Platform": 1, "Asset": 3, "Service": 3, "Access": 3},
+    },
+    "Malicious Insider": {
+        "capability": 6, "resources": 4, "sophistication": 5, "persistence": 8, "motivation_score": 6,
+        "motivation": "Financial gain / Coercion",
+        "primary_targets": ["Platform Layer (KMS)", "Asset Layer (minting)", "Service Layer (admin)"],
+        "stride_focus": ["Repudiation", "Elevation of Privilege", "Information Disclosure"],
+        "top_components": ["Key Management Service (KMS)", "Minting Authority", "Smart Contract Runtime"],
+        "top_techniques": ["CBDC-NEW-11", "T1098", "T1070"],
+        "example": "Abusing privileged access to mint unauthorized CBDC",
+        "layer_scores": {"Platform": 3, "Asset": 3, "Service": 2, "Access": 1},
+    },
+    "Compromised Third-Party": {
+        "capability": 5, "resources": 5, "sophistication": 6, "persistence": 6, "motivation_score": 5,
+        "motivation": "Supply chain attack",
+        "primary_targets": ["Access Layer (wallet SDK)", "Platform Layer (cloud infra)", "Service Layer (oracle)"],
+        "stride_focus": ["Tampering", "Information Disclosure"],
+        "top_components": ["Wallet Providers", "Oracle Interface", "API Gateways"],
+        "top_techniques": ["CBDC-NEW-01", "CBDC-NEW-03", "T1190"],
+        "example": "Injecting backdoor into wallet SDK used by multiple intermediaries",
+        "layer_scores": {"Platform": 2, "Asset": 1, "Service": 2, "Access": 3},
+    },
+    "End-User Fraud": {
+        "capability": 2, "resources": 1, "sophistication": 2, "persistence": 3, "motivation_score": 4,
+        "motivation": "Petty fraud",
+        "primary_targets": ["Access Layer (own wallet)", "Service Layer (offline payments)"],
+        "stride_focus": ["Spoofing", "Repudiation"],
+        "top_components": ["Wallet Providers", "Offline Payment Module", "Mobile Apps"],
+        "top_techniques": ["CBDC-NEW-12", "T1110", "T1136"],
+        "example": "Attempting offline payment replay attacks",
+        "layer_scores": {"Platform": 0, "Asset": 1, "Service": 2, "Access": 3},
+    },
+    "Hacktivist": {
+        "capability": 4, "resources": 3, "sophistication": 4, "persistence": 5, "motivation_score": 7,
+        "motivation": "Disruption / Ideology",
+        "primary_targets": ["Access Layer (DDoS on wallets)", "Platform Layer (DDoS on nodes)"],
+        "stride_focus": ["Denial of Service"],
+        "top_components": ["API Gateways", "Consensus Nodes", "Web Portals"],
+        "top_techniques": ["T1489", "T1485", "T1595"],
+        "example": "DDoS campaign against CBDC infrastructure to protest surveillance",
+        "layer_scores": {"Platform": 2, "Asset": 0, "Service": 1, "Access": 3},
+    },
+}
+
+RISK_REGISTER = pd.DataFrame([
+    {"risk_id": "R-001", "layer": "Platform", "component": "Core Ledger", "threat": "Ledger tampering via compromised validator node", "stride": "Tampering", "mitre": "CBDC-NEW-04", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Byzantine fault tolerance, immutable audit logs, node integrity monitoring", "control_effectiveness": 4},
+    {"risk_id": "R-002", "layer": "Platform", "component": "Consensus Nodes", "threat": "51% attack on consensus mechanism", "stride": "Tampering", "mitre": "CBDC-NEW-04", "adversary": "Nation-State", "likelihood": 1, "impact": 5, "controls": "Permissioned consensus, validator vetting, geographic distribution", "control_effectiveness": 5},
+    {"risk_id": "R-003", "layer": "Platform", "component": "Key Management Service (KMS)", "threat": "Private key extraction via side-channel attack", "stride": "Information Disclosure", "mitre": "CBDC-NEW-07", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Side-channel resistant HSMs, key sharding, multi-party computation", "control_effectiveness": 4},
+    {"risk_id": "R-004", "layer": "Platform", "component": "Settlement Engine", "threat": "Settlement manipulation causing financial loss", "stride": "Tampering", "mitre": "T1485", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Real-time reconciliation, dual authorization, audit trails", "control_effectiveness": 4},
+    {"risk_id": "R-005", "layer": "Asset", "component": "Minting Authority", "threat": "Unauthorized CBDC minting by insider", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Multi-party authorization, HSM-backed signing, issuance audit trail", "control_effectiveness": 4},
+    {"risk_id": "R-006", "layer": "Asset", "component": "Token/Account State", "threat": "Double-spending via consensus delay exploitation", "stride": "Tampering", "mitre": "CBDC-NEW-10", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Finality guarantees, double-spend proofs, real-time monitoring", "control_effectiveness": 3},
+    {"risk_id": "R-007", "layer": "Asset", "component": "UTXO Store", "threat": "UTXO replay attack causing double-spend", "stride": "Tampering", "mitre": "CBDC-NEW-10", "adversary": "Organised Crime", "likelihood": 2, "impact": 4, "controls": "Nonce enforcement, state validation, transaction ordering", "control_effectiveness": 4},
+    {"risk_id": "R-008", "layer": "Asset", "component": "Asset Lifecycle Manager", "threat": "Lifecycle bypass allowing counterfeit tokens", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Lifecycle state machine enforcement, separation of duties, code review", "control_effectiveness": 3},
+    {"risk_id": "R-009", "layer": "Service", "component": "Payment Processor", "threat": "Transaction routing manipulation for fraud", "stride": "Tampering", "mitre": "T1036", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Transaction integrity checks, behavioral analytics, real-time monitoring", "control_effectiveness": 3},
+    {"risk_id": "R-010", "layer": "Service", "component": "AML/CFT Engine", "threat": "AML threshold evasion via transaction structuring", "stride": "Tampering", "mitre": "CBDC-NEW-06", "adversary": "Organised Crime", "likelihood": 4, "impact": 3, "controls": "Aggregate monitoring, graph analytics, adaptive thresholds, velocity checks", "control_effectiveness": 3},
+    {"risk_id": "R-011", "layer": "Service", "component": "Smart Contract Runtime", "threat": "Reentrancy exploit draining escrow funds", "stride": "Tampering", "mitre": "CBDC-NEW-02", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Formal verification, reentrancy guards, contract auditing, deployment approvals", "control_effectiveness": 4},
+    {"risk_id": "R-012", "layer": "Service", "component": "Interoperability Bridge", "threat": "Cross-chain bridge exploit draining liquidity", "stride": "Tampering", "mitre": "CBDC-NEW-09", "adversary": "Nation-State", "likelihood": 3, "impact": 5, "controls": "Multi-sig validation, rate limiting, circuit breakers, bridge audits", "control_effectiveness": 3},
+    {"risk_id": "R-013", "layer": "Service", "component": "Offline Payment Module", "threat": "Offline payment token replay attack", "stride": "Spoofing", "mitre": "CBDC-NEW-12", "adversary": "End-User Fraud", "likelihood": 4, "impact": 2, "controls": "Token uniqueness enforcement, hardware storage, reconciliation on reconnect", "control_effectiveness": 3},
+    {"risk_id": "R-014", "layer": "Service", "component": "Oracle Interface", "threat": "Oracle data manipulation affecting smart contracts", "stride": "Tampering", "mitre": "CBDC-NEW-03", "adversary": "Compromised Third-Party", "likelihood": 3, "impact": 4, "controls": "Multiple oracle sources, median aggregation, anomaly detection", "control_effectiveness": 3},
+    {"risk_id": "R-015", "layer": "Access", "component": "Wallet Providers", "threat": "Malicious wallet app distributing trojanised software", "stride": "Tampering", "mitre": "CBDC-NEW-01", "adversary": "Compromised Third-Party", "likelihood": 3, "impact": 4, "controls": "App store verification, code signing, wallet attestation, supply chain security", "control_effectiveness": 3},
+    {"risk_id": "R-016", "layer": "Access", "component": "API Gateways", "threat": "DDoS attack halting CBDC payment services", "stride": "Denial of Service", "mitre": "T1489", "adversary": "Hacktivist", "likelihood": 4, "impact": 4, "controls": "DDoS mitigation, CDN, auto-scaling, traffic scrubbing, geographic distribution", "control_effectiveness": 4},
+    {"risk_id": "R-017", "layer": "Access", "component": "KYC/IAM System", "threat": "Synthetic identity fraud for wallet creation", "stride": "Spoofing", "mitre": "T1136", "adversary": "Organised Crime", "likelihood": 4, "impact": 3, "controls": "Enhanced KYC, biometric verification, identity graph analysis, velocity checks", "control_effectiveness": 3},
+    {"risk_id": "R-018", "layer": "Access", "component": "Mobile Apps", "threat": "Credential theft via phishing campaign", "stride": "Spoofing", "mitre": "T1566", "adversary": "Organised Crime", "likelihood": 4, "impact": 3, "controls": "MFA, user awareness training, email filtering, domain monitoring", "control_effectiveness": 3},
+    {"risk_id": "R-019", "layer": "Access", "component": "Web Portals", "threat": "Session hijacking of intermediary admin portal", "stride": "Spoofing", "mitre": "T1190", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Secure session management, CSP headers, CSRF protection, short session timeouts", "control_effectiveness": 4},
+    {"risk_id": "R-020", "layer": "Platform", "component": "Core Ledger", "threat": "Data destruction wiping ledger records", "stride": "Denial of Service", "mitre": "T1485", "adversary": "Nation-State", "likelihood": 1, "impact": 5, "controls": "Geo-distributed backups, immutable storage, disaster recovery, BFT consensus", "control_effectiveness": 5},
+    {"risk_id": "R-021", "layer": "Access", "component": "Wallet Providers", "threat": "Brute force attack on wallet PINs", "stride": "Spoofing", "mitre": "T1110", "adversary": "End-User Fraud", "likelihood": 3, "impact": 2, "controls": "Account lockout, rate limiting, biometric auth, hardware tokens", "control_effectiveness": 4},
+    {"risk_id": "R-022", "layer": "Service", "component": "Payment Processor", "threat": "Masquerading attack transactions as legitimate payments", "stride": "Spoofing", "mitre": "T1036", "adversary": "Organised Crime", "likelihood": 3, "impact": 3, "controls": "Behavioral analytics, transaction pattern analysis, anomaly detection", "control_effectiveness": 3},
+    {"risk_id": "R-023", "layer": "Access", "component": "KYC/IAM System", "threat": "Bulk extraction of PII from KYC database", "stride": "Information Disclosure", "mitre": "T1119", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Data loss prevention, query rate limiting, database activity monitoring, encryption", "control_effectiveness": 4},
+    {"risk_id": "R-024", "layer": "Platform", "component": "Consensus Nodes", "threat": "Cross-tier pivot from retail to wholesale network", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-08", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture", "control_effectiveness": 4},
+    {"risk_id": "R-025", "layer": "Access", "component": "Aggregators", "threat": "Supply chain compromise of aggregator APIs", "stride": "Tampering", "mitre": "T1190", "adversary": "Compromised Third-Party", "likelihood": 3, "impact": 3, "controls": "API security testing, vendor assessments, input validation, WAF", "control_effectiveness": 3},
+])
+RISK_REGISTER["inherent_risk"] = RISK_REGISTER["likelihood"] * RISK_REGISTER["impact"]
+RISK_REGISTER["residual_risk"] = (
+    RISK_REGISTER["inherent_risk"]
+    * (6 - RISK_REGISTER["control_effectiveness"]) / 5
+).round(1)
+
+# Simulation process → ASAP layer mapping
+PROCESS_LAYER_MAP = {
+    "P1_issuance": ["Asset"],
+    "P2_transfer": ["Asset", "Service"],
+    "P3_redemption": ["Asset"],
+    "P4_kyc": ["Access"],
+    "P5_risk_check": ["Service"],
+    "L1_ledger": ["Platform"],
+    "L2_consensus": ["Platform"],
+    "L3_api": ["Access"],
+    "L4_wallet": ["Access"],
+}
+
+# Agent → Adversary mapping for simulation link
+AGENT_ADVERSARY_MAP = {
+    "Q-Learning": "End-User Fraud",
+    "DQN": "Organised Crime",
+    "REINFORCE": "Compromised Third-Party",
+    "A2C": "Nation-State",
+}
+
+TACTIC_ORDER = [
+    "Reconnaissance", "Initial Access", "Execution", "Persistence",
+    "Privilege Escalation", "Defense Evasion", "Credential Access",
+    "Lateral Movement", "Collection", "Impact",
+]
+
+STRIDE_CATEGORIES = [
+    "Spoofing", "Tampering", "Repudiation",
+    "Information Disclosure", "Denial of Service", "Elevation of Privilege",
+]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 8: CBDC Architecture
+# ═══════════════════════════════════════════════════════════════════════════
+with tab8:
+    st.header("CBDC Architecture — IMF ASAP 4-Layer Model")
+    st.write(
+        "Interactive view of the IMF ASAP reference architecture applied to "
+        "a **two-tier CBDC ecosystem** (Central Bank wholesale + Intermediary/Retail)."
+    )
+
+    # ── 1. ASAP Layer Diagram ─────────────────────────────────────────────
+    st.subheader("ASAP Layer Diagram")
+
+    layer_names = ["Platform", "Asset", "Service", "Access"]
+    layer_colors = [ASAP_LAYERS[l]["color"] for l in layer_names]
+    layer_funcs = [ASAP_LAYERS[l]["functions"][:80] + "…" for l in layer_names]
+    layer_components = [", ".join(ASAP_LAYERS[l]["components"]) for l in layer_names]
+    layer_tiers = [ASAP_LAYERS[l]["tier"] for l in layer_names]
+
+    fig = go.Figure()
+    for i, layer in enumerate(layer_names):
+        fig.add_trace(go.Bar(
+            x=[1],
+            y=[1],
+            name=layer,
+            marker_color=ASAP_LAYERS[layer]["color"],
+            text=f"<b>{layer} Layer</b><br>{layer_components[i]}",
+            textposition="inside",
+            insidetextanchor="middle",
+            hovertext=(
+                f"<b>{layer} Layer</b><br>"
+                f"Tier: {layer_tiers[i]}<br>"
+                f"Functions: {ASAP_LAYERS[layer]['functions']}<br>"
+                f"Components: {layer_components[i]}"
+            ),
+            hoverinfo="text",
+            textfont=dict(size=13, color="white"),
+        ))
+
+    fig.update_layout(
+        barmode="stack",
+        showlegend=False,
+        height=450,
+        xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+        yaxis=dict(
+            showticklabels=True, showgrid=False, zeroline=False,
+            tickvals=[0.5, 1.5, 2.5, 3.5],
+            ticktext=["Platform (L0)", "Asset (L1)", "Service (L2)", "Access (L3)"],
+        ),
+        title="IMF ASAP 4-Layer Architecture (Bottom → Top)",
+        margin=dict(l=120),
+    )
+
+    # Tier annotations
+    fig.add_annotation(x=1.15, y=1, text="<b>Central Bank<br>Tier</b>",
+                       showarrow=False, xanchor="left", font=dict(size=11, color="#636EFA"))
+    fig.add_annotation(x=1.15, y=3.5, text="<b>Intermediary /<br>Retail Tier</b>",
+                       showarrow=False, xanchor="left", font=dict(size=11, color="#AB63FA"))
+    fig.add_annotation(x=1.15, y=2.25, text="<b>Both Tiers</b>",
+                       showarrow=False, xanchor="left", font=dict(size=11, color="#00CC96"))
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── Two-tier model summary ───────────────────────────────────────────
+    left, right = st.columns(2)
+    with left:
+        st.markdown("#### Tier 1 — Central Bank (Wholesale)")
+        st.markdown(
+            "**Components:** Core Ledger, RTGS Interface, wCBDC DLT, "
+            "Central Bank Server, Validator Infrastructure\n\n"
+            "**Role:** Issues CBDC, manages lifecycle, runs wholesale settlement"
+        )
+    with right:
+        st.markdown("#### Tier 2 — Intermediaries & End Users (Retail)")
+        st.markdown(
+            "**Components:** Commercial Bank Servers, Wallet Providers, "
+            "KYC Systems, Retail e-Wallet, Merchant Payment Terminals\n\n"
+            "**Role:** Handles KYC, manages retail wallets, processes retail transactions"
+        )
+
+    # ── 2. Component Explorer ────────────────────────────────────────────
+    st.subheader("Component Explorer")
+    all_components = sorted(COMPONENT_DETAILS.keys())
+    selected_component = st.selectbox("Select a component", all_components, key="arch_component")
+
+    comp = COMPONENT_DETAILS[selected_component]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("ASAP Layer", comp["layer"])
+    c2.metric("Tier", comp["tier"])
+    c3.metric("STRIDE Categories", str(len(comp["stride"])))
+
+    st.markdown(f"**Functions:** {comp['functions']}")
+    st.markdown(f"**Attack Surface:** {comp['attack_surface']}")
+    st.markdown(f"**STRIDE:** {', '.join(comp['stride'])}")
+    st.markdown(f"**MITRE Techniques:** {', '.join(comp['mitre'])}")
+    st.markdown(f"**Connected Components:** {' → '.join(comp['connected'])}")
+
+    # Show relevant techniques
+    comp_techniques = MITRE_TECHNIQUES[
+        MITRE_TECHNIQUES["technique_id"].isin(comp["mitre"])
+    ][["technique_id", "technique_name", "tactic", "cbdc_application"]]
+    if not comp_techniques.empty:
+        st.dataframe(comp_techniques, use_container_width=True, hide_index=True)
+
+    # ── 3. Simulation Mapping (CSV only) ─────────────────────────────────
+    if has_csv and not csv_empty:
+        st.subheader("Simulation → ASAP Layer Mapping")
+        sim_layer_counts = {}
+        for _, row in filtered.iterrows():
+            proc = str(row.get("process", ""))
+            layers = PROCESS_LAYER_MAP.get(proc, [])
+            for layer in layers:
+                sim_layer_counts[layer] = sim_layer_counts.get(layer, 0) + 1
+
+        if sim_layer_counts:
+            sim_df = pd.DataFrame(
+                list(sim_layer_counts.items()), columns=["ASAP Layer", "Event Count"]
+            ).sort_values("Event Count", ascending=False)
+            fig = px.bar(
+                sim_df, x="ASAP Layer", y="Event Count",
+                color="ASAP Layer",
+                color_discrete_map={l: ASAP_LAYERS[l]["color"] for l in ASAP_LAYERS},
+                title="Simulation Events by ASAP Layer",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No process mappings found in the uploaded data.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 9: Threat Catalogue
+# ═══════════════════════════════════════════════════════════════════════════
+with tab9:
+    st.header("Threat Catalogue — MITRE ATT&CK for CBDC")
+    st.write(
+        "Structured mapping of **MITRE ATT&CK techniques** adapted for CBDC threat modelling, "
+        "including CBDC-specific extensions (CBDC-NEW-xx)."
+    )
+
+    # ── 1. Kill Chain View ────────────────────────────────────────────────
+    st.subheader("Kill Chain View")
+    tactic_counts = MITRE_TECHNIQUES.groupby("tactic").agg(
+        total=("technique_id", "size"),
+        cbdc_new=("is_cbdc_new", "sum"),
+        standard=("is_cbdc_new", lambda x: (~x).sum()),
+    ).reindex(TACTIC_ORDER).reset_index()
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=tactic_counts["tactic"], y=tactic_counts["standard"],
+        name="Standard MITRE", marker_color="#636EFA",
+    ))
+    fig.add_trace(go.Bar(
+        x=tactic_counts["tactic"], y=tactic_counts["cbdc_new"],
+        name="CBDC-Specific (NEW)", marker_color="#EF553B",
+    ))
+    fig.update_layout(
+        barmode="stack", title="MITRE ATT&CK Kill Chain — Technique Counts by Tactic",
+        xaxis_title="Tactic (Kill Chain Order)", yaxis_title="Technique Count",
+        xaxis_tickangle=-35, height=450,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 2. Technique Table ────────────────────────────────────────────────
+    st.subheader("Technique Table")
+    display_techniques = MITRE_TECHNIQUES[[
+        "tactic", "technique_id", "technique_name", "cbdc_application",
+        "target_layer", "stride", "adversaries",
+    ]].copy()
+    display_techniques.columns = [
+        "Tactic", "ID", "Name", "CBDC Application",
+        "Target Layer", "STRIDE", "Adversary Classes",
+    ]
+
+    tactic_filter = st.multiselect(
+        "Filter by tactic", TACTIC_ORDER, default=TACTIC_ORDER, key="tc_tactic_filter"
+    )
+    layer_filter = st.multiselect(
+        "Filter by target layer", ["Platform", "Asset", "Service", "Access"],
+        default=["Platform", "Asset", "Service", "Access"], key="tc_layer_filter"
+    )
+
+    filtered_techniques = display_techniques[
+        display_techniques["Tactic"].isin(tactic_filter)
+        & display_techniques["Target Layer"].isin(layer_filter)
+    ]
+    st.dataframe(filtered_techniques, use_container_width=True, hide_index=True, height=400)
+
+    # ── 3. STRIDE × MITRE Cross-Reference Heatmap ────────────────────────
+    st.subheader("STRIDE × MITRE Tactic Heatmap")
+    cross_ref = MITRE_TECHNIQUES.groupby(["stride", "tactic"]).size().reset_index(name="count")
+    cross_pivot = cross_ref.pivot(index="stride", columns="tactic", values="count").fillna(0)
+    cross_pivot = cross_pivot.reindex(index=STRIDE_CATEGORIES, columns=TACTIC_ORDER, fill_value=0)
+
+    fig = px.imshow(
+        cross_pivot.values,
+        x=TACTIC_ORDER, y=STRIDE_CATEGORIES,
+        text_auto=True, aspect="auto",
+        color_continuous_scale="YlOrRd",
+        title="STRIDE Category × MITRE Tactic (Technique Count)",
+        labels=dict(color="Count"),
+    )
+    fig.update_layout(xaxis_tickangle=-35, height=400)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 4. Technique Detail ──────────────────────────────────────────────
+    st.subheader("Technique Detail")
+    tech_options = MITRE_TECHNIQUES["technique_id"] + " — " + MITRE_TECHNIQUES["technique_name"]
+    selected_tech = st.selectbox("Select technique", tech_options.tolist(), key="tc_detail")
+    tech_id = selected_tech.split(" — ")[0]
+    tech_row = MITRE_TECHNIQUES[MITRE_TECHNIQUES["technique_id"] == tech_id].iloc[0]
+
+    tc1, tc2, tc3 = st.columns(3)
+    tc1.metric("Tactic", tech_row["tactic"])
+    tc2.metric("Target Layer", tech_row["target_layer"])
+    tc3.metric("CBDC-Specific", "Yes" if tech_row["is_cbdc_new"] else "No")
+
+    st.markdown(f"**CBDC Application:** {tech_row['cbdc_application']}")
+    st.markdown(f"**STRIDE Category:** {tech_row['stride']}")
+    st.markdown(f"**Adversary Classes:** {tech_row['adversaries']}")
+    st.markdown(f"**Example Scenario:** {tech_row['example_scenario']}")
+    st.markdown(f"**Recommended Controls:** {tech_row['controls']}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 10: Adversary Profiles
+# ═══════════════════════════════════════════════════════════════════════════
+with tab10:
+    st.header("Adversary Profiles — Threat Actor Intelligence")
+    st.write(
+        "Interactive profiles of **6 adversary classes** targeting CBDC infrastructure, "
+        "with capability assessments, target preferences, and STRIDE analysis."
+    )
+
+    adv_names = list(ADVERSARIES.keys())
+    radar_attrs = ["capability", "resources", "sophistication", "persistence", "motivation_score"]
+    radar_labels = ["Capability", "Resources", "Sophistication", "Persistence", "Motivation"]
+
+    # ── 1. Adversary Radar Charts ─────────────────────────────────────────
+    st.subheader("Adversary Capability Radar")
+    selected_adversaries = st.multiselect(
+        "Select adversaries to compare", adv_names, default=adv_names, key="adv_radar_select"
+    )
+
+    if selected_adversaries:
+        fig = go.Figure()
+        adv_colors = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
+        for i, adv in enumerate(selected_adversaries):
+            vals = [ADVERSARIES[adv][a] for a in radar_attrs]
+            vals.append(vals[0])  # close the polygon
+            fig.add_trace(go.Scatterpolar(
+                r=vals,
+                theta=radar_labels + [radar_labels[0]],
+                fill="toself",
+                name=adv,
+                line_color=adv_colors[i % len(adv_colors)],
+                opacity=0.7,
+            ))
+        fig.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 10])),
+            title="Adversary Capability Comparison",
+            height=500,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── 2. Target Preference Matrix ──────────────────────────────────────
+    st.subheader("Target Preference Matrix (Adversary × ASAP Layer)")
+    layer_names_list = ["Platform", "Asset", "Service", "Access"]
+    target_matrix = []
+    for adv in adv_names:
+        row = [ADVERSARIES[adv]["layer_scores"][l] for l in layer_names_list]
+        target_matrix.append(row)
+    target_arr = np.array(target_matrix)
+
+    fig = px.imshow(
+        target_arr,
+        x=layer_names_list, y=adv_names,
+        text_auto=True, aspect="auto",
+        color_continuous_scale="YlOrRd",
+        title="Adversary × ASAP Layer Target Preference (3=High, 2=Medium, 1=Low, 0=None)",
+        labels=dict(color="Score"),
+    )
+    fig.update_layout(height=380)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 3. STRIDE Preference by Adversary ────────────────────────────────
+    st.subheader("STRIDE Preference by Adversary")
+    stride_pref_rows = []
+    for adv in adv_names:
+        for s in ADVERSARIES[adv]["stride_focus"]:
+            stride_pref_rows.append({"Adversary": adv, "STRIDE": s, "count": 1})
+    stride_pref_df = pd.DataFrame(stride_pref_rows)
+    if not stride_pref_df.empty:
+        stride_agg = stride_pref_df.groupby(["Adversary", "STRIDE"])["count"].sum().reset_index()
+        fig = px.bar(
+            stride_agg, x="Adversary", y="count", color="STRIDE",
+            barmode="group", title="STRIDE Category Focus by Adversary",
+            color_discrete_map=STRIDE_COLOURS,
+        )
+        fig.update_layout(yaxis_title="Focus Count")
+        st.plotly_chart(fig, use_container_width=True)
+
+    # ── 4. Adversary Summary Cards ───────────────────────────────────────
+    st.subheader("Adversary Summary Cards")
+    card_cols = st.columns(3)
+    for idx, adv in enumerate(adv_names):
+        data = ADVERSARIES[adv]
+        with card_cols[idx % 3]:
+            st.markdown(f"#### {adv}")
+            st.metric("Motivation", data["motivation"])
+            st.markdown(f"**Top Targets:** {', '.join(data['top_components'][:3])}")
+            st.markdown(f"**Top Techniques:** {', '.join(data['top_techniques'][:3])}")
+            st.markdown(f"**Example:** {data['example']}")
+            st.markdown("---")
+
+    # ── 5. Simulation Link (CSV only) ────────────────────────────────────
+    if has_csv and not csv_empty:
+        st.subheader("Simulation → Adversary Profile Mapping")
+        st.write(
+            "Maps RL agents to adversary profiles based on sophistication: "
+            "Q-Learning → End-User Fraud, DQN → Organised Crime, "
+            "REINFORCE → Compromised Third-Party, A2C → Nation-State."
+        )
+
+        sim_adv_rows = []
+        for agent in RL_AGENTS:
+            agent_data = rl_df[rl_df["agent_id"] == agent]
+            if agent_data.empty:
+                continue
+            adv_name = AGENT_ADVERSARY_MAP.get(agent, "Unknown")
+            adv_profile = ADVERSARIES.get(adv_name, {})
+            sim_adv_rows.append({
+                "RL Agent": agent,
+                "Mapped Adversary": adv_name,
+                "Sim Events": len(agent_data),
+                "Avg Amount": round(agent_data["amount"].mean(), 1) if agent_data["amount"].notna().any() else 0,
+                "Adversary Capability": adv_profile.get("capability", 0),
+                "Adversary Sophistication": adv_profile.get("sophistication", 0),
+            })
+
+        if sim_adv_rows:
+            sim_adv_df = pd.DataFrame(sim_adv_rows)
+            st.dataframe(sim_adv_df, use_container_width=True, hide_index=True)
+
+            fig = px.bar(
+                sim_adv_df, x="RL Agent", y="Sim Events",
+                color="Mapped Adversary", title="Simulation Events by Agent → Adversary Mapping",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TAB 11: Risk Register
+# ═══════════════════════════════════════════════════════════════════════════
+with tab11:
+    st.header("Risk Register — Quantitative Risk Assessment")
+    st.write(
+        "Comprehensive risk register with **25 risk entries** covering all 4 ASAP layers. "
+        "Includes inherent/residual risk scoring and interactive risk calculator."
+    )
+
+    # Work with a session-state copy for interactive edits
+    if "risk_register" not in st.session_state:
+        st.session_state["risk_register"] = RISK_REGISTER.copy()
+    rr = st.session_state["risk_register"]
+
+    # ── 1. Risk Heatmap (5×5) ─────────────────────────────────────────────
+    st.subheader("Risk Heatmap (Likelihood × Impact)")
+    heatmap_matrix = np.zeros((5, 5), dtype=int)
+    for _, row in rr.iterrows():
+        li = int(row["likelihood"]) - 1
+        ii = int(row["impact"]) - 1
+        heatmap_matrix[li][ii] += 1
+
+    # Color scale: green→yellow→orange→red
+    risk_score_matrix = np.zeros((5, 5))
+    for i in range(5):
+        for j in range(5):
+            risk_score_matrix[i][j] = (i + 1) * (j + 1)
+
+    fig = go.Figure(data=go.Heatmap(
+        z=heatmap_matrix,
+        x=["1 - Negligible", "2 - Minor", "3 - Moderate", "4 - Major", "5 - Catastrophic"],
+        y=["1 - Rare", "2 - Unlikely", "3 - Possible", "4 - Likely", "5 - Almost Certain"],
+        text=heatmap_matrix,
+        texttemplate="%{text}",
+        textfont=dict(size=16, color="white"),
+        colorscale=[
+            [0.0, "#2ecc71"], [0.25, "#f1c40f"],
+            [0.5, "#e67e22"], [0.75, "#e74c3c"], [1.0, "#c0392b"],
+        ],
+        showscale=True,
+        colorbar=dict(title="Count"),
+    ))
+    fig.update_layout(
+        title="5×5 Risk Heatmap — Number of Risks per Cell",
+        xaxis_title="Impact", yaxis_title="Likelihood",
+        height=450,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 2. Risk Register Table ───────────────────────────────────────────
+    st.subheader("Full Risk Register")
+    display_rr = rr[[
+        "risk_id", "layer", "component", "threat", "stride", "mitre",
+        "adversary", "likelihood", "impact", "inherent_risk",
+        "controls", "control_effectiveness", "residual_risk",
+    ]].copy()
+    display_rr.columns = [
+        "Risk ID", "ASAP Layer", "Component", "Threat", "STRIDE", "MITRE",
+        "Adversary", "Likelihood", "Impact", "Inherent Risk",
+        "Controls", "Control Eff.", "Residual Risk",
+    ]
+
+    rr_layer_filter = st.multiselect(
+        "Filter by ASAP Layer", ["Platform", "Asset", "Service", "Access"],
+        default=["Platform", "Asset", "Service", "Access"], key="rr_layer_filter"
+    )
+    filtered_rr = display_rr[display_rr["ASAP Layer"].isin(rr_layer_filter)]
+    st.dataframe(
+        filtered_rr.sort_values("Inherent Risk", ascending=False),
+        use_container_width=True, hide_index=True, height=400,
+    )
+
+    # ── 3. Risk by Layer ─────────────────────────────────────────────────
+    st.subheader("Risk by ASAP Layer")
+    layer_risk = rr.groupby("layer").agg(
+        inherent=("inherent_risk", "sum"),
+        residual=("residual_risk", "sum"),
+    ).reindex(["Platform", "Asset", "Service", "Access"]).reset_index()
+    layer_risk.columns = ["Layer", "Inherent Risk", "Residual Risk"]
+
+    layer_melt = layer_risk.melt(id_vars="Layer", var_name="Type", value_name="Score")
+    fig = px.bar(
+        layer_melt, x="Layer", y="Score", color="Type",
+        barmode="group", title="Aggregate Risk Score by ASAP Layer",
+        color_discrete_map={"Inherent Risk": "#EF553B", "Residual Risk": "#636EFA"},
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 4. Control Effectiveness Analysis ────────────────────────────────
+    st.subheader("Control Effectiveness Analysis")
+    fig = px.scatter(
+        rr, x="inherent_risk", y="residual_risk",
+        color="layer", size=[3] * len(rr),
+        color_discrete_map={l: ASAP_LAYERS[l]["color"] for l in ASAP_LAYERS},
+        title="Inherent vs Residual Risk (below diagonal = effective controls)",
+        labels={"inherent_risk": "Inherent Risk", "residual_risk": "Residual Risk", "layer": "ASAP Layer"},
+        hover_data=["risk_id", "component", "threat"],
+    )
+    # Diagonal reference line
+    max_val = max(rr["inherent_risk"].max(), rr["residual_risk"].max()) + 1
+    fig.add_shape(
+        type="line", x0=0, y0=0, x1=max_val, y1=max_val,
+        line=dict(dash="dash", color="gray"),
+    )
+    fig.update_layout(height=500)
+    st.plotly_chart(fig, use_container_width=True)
+
+    # ── 5. Top 10 Risks ─────────────────────────────────────────────────
+    st.subheader("Top 10 Highest Residual Risks")
+    top10 = rr.nlargest(10, "residual_risk")[
+        ["risk_id", "layer", "component", "threat", "inherent_risk",
+         "residual_risk", "controls"]
+    ].copy()
+    top10.columns = [
+        "Risk ID", "Layer", "Component", "Threat",
+        "Inherent Risk", "Residual Risk", "Current Controls",
+    ]
+    st.dataframe(top10, use_container_width=True, hide_index=True)
+
+    # ── 6. Interactive Risk Calculator ───────────────────────────────────
+    st.subheader("Interactive Risk Calculator")
+    st.write("Adjust likelihood and impact for any risk entry to see recalculated scores.")
+
+    calc_risk = st.selectbox(
+        "Select risk entry",
+        rr["risk_id"].tolist(),
+        format_func=lambda x: f"{x} — {rr[rr['risk_id']==x]['threat'].iloc[0][:60]}",
+        key="risk_calc_select",
+    )
+    calc_row = rr[rr["risk_id"] == calc_risk].iloc[0]
+
+    rc1, rc2, rc3 = st.columns(3)
+    with rc1:
+        new_likelihood = st.slider(
+            "Likelihood", 1, 5, int(calc_row["likelihood"]),
+            key="calc_likelihood",
+            help="1=Rare, 2=Unlikely, 3=Possible, 4=Likely, 5=Almost Certain",
+        )
+    with rc2:
+        new_impact = st.slider(
+            "Impact", 1, 5, int(calc_row["impact"]),
+            key="calc_impact",
+            help="1=Negligible, 2=Minor, 3=Moderate, 4=Major, 5=Catastrophic",
+        )
+    with rc3:
+        new_ctrl_eff = st.slider(
+            "Control Effectiveness", 1, 5, int(calc_row["control_effectiveness"]),
+            key="calc_ctrl_eff",
+        )
+
+    new_inherent = new_likelihood * new_impact
+    new_residual = round(new_inherent * (6 - new_ctrl_eff) / 5, 1)
+
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    mc1.metric("New Inherent Risk", new_inherent, f"{new_inherent - calc_row['inherent_risk']:+.0f}")
+    mc2.metric("New Residual Risk", new_residual, f"{new_residual - calc_row['residual_risk']:+.1f}")
+
+    # Risk level label
+    if new_inherent <= 4:
+        risk_level = "LOW"
+        risk_color = "green"
+    elif new_inherent <= 9:
+        risk_level = "MEDIUM"
+        risk_color = "orange"
+    elif new_inherent <= 15:
+        risk_level = "HIGH"
+        risk_color = "red"
+    else:
+        risk_level = "CRITICAL"
+        risk_color = "darkred"
+    mc3.metric("Risk Level", risk_level)
+    mc4.metric("Original Inherent", int(calc_row["inherent_risk"]))
+
+    # Update session state if values changed
+    if (new_likelihood != calc_row["likelihood"] or
+            new_impact != calc_row["impact"] or
+            new_ctrl_eff != calc_row["control_effectiveness"]):
+        idx = rr.index[rr["risk_id"] == calc_risk][0]
+        st.session_state["risk_register"].at[idx, "likelihood"] = new_likelihood
+        st.session_state["risk_register"].at[idx, "impact"] = new_impact
+        st.session_state["risk_register"].at[idx, "control_effectiveness"] = new_ctrl_eff
+        st.session_state["risk_register"].at[idx, "inherent_risk"] = new_inherent
+        st.session_state["risk_register"].at[idx, "residual_risk"] = new_residual
 
 
 # ═══════════════════════════════════════════════════════════════════════════
