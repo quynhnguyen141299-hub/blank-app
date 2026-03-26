@@ -6,7 +6,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from sklearn.preprocessing import LabelEncoder
+try:
+    from sklearn.preprocessing import LabelEncoder
+    _HAS_SKLEARN = True
+except ImportError:
+    _HAS_SKLEARN = False
 
 APP_NAME = "CBDC Sentinel: AI Attack & Detection Analytics"
 RL_AGENTS = ["Q-Learning", "DQN", "REINFORCE", "A2C"]
@@ -172,10 +176,14 @@ def load_logs(uploaded_file):
     ).astype(bool)
 
     # ── V2 Feature Engineering (categorical + STRIDE one-hot) ────────────
-    _le_process = LabelEncoder()
-    _le_layer   = LabelEncoder()
-    df["process_enc"]    = _le_process.fit_transform(df["process"].fillna("unknown"))
-    df["asap_layer_enc"] = _le_layer.fit_transform(df["asap_layer"].fillna("unknown"))
+    if _HAS_SKLEARN:
+        _le_process = LabelEncoder()
+        _le_layer   = LabelEncoder()
+        df["process_enc"]    = _le_process.fit_transform(df["process"].fillna("unknown"))
+        df["asap_layer_enc"] = _le_layer.fit_transform(df["asap_layer"].fillna("unknown"))
+    else:
+        df["process_enc"]    = df["process"].fillna("unknown").astype("category").cat.codes
+        df["asap_layer_enc"] = df["asap_layer"].fillna("unknown").astype("category").cat.codes
 
     _STRIDE_TAGS = [
         "Spoofing", "Tampering", "Repudiation",
