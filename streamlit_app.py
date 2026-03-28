@@ -358,7 +358,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
         "Network Graph",
         "Agent Strategy",
         "CBDC Architecture",
-        "Threat Catalogue",
+        "Threat Catalogue & Controls",
         "Adversary Profiles",
         "Risk Register",
     ]
@@ -1736,6 +1736,45 @@ STRIDE_CATEGORIES = [
     "Information Disclosure", "Denial of Service", "Elevation of Privilege",
 ]
 
+CONTROLS_FRAMEWORK = {
+    "Spoofing": {
+        "mitre_controls": "MFA, certificate pinning, wallet attestation, biometric authentication",
+        "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control", "controls": "PR.AC-1: Identity management, PR.AC-3: Remote access management, PR.AC-7: Device authentication"},
+        "iso27001": {"domain": "A.9 Access Control", "controls": "A.9.2.1 User registration, A.9.4.2 Secure log-on procedures, A.9.2.3 Privileged access management"},
+        "cbdc_specific": {"asap_controls": "Access Layer: wallet-level biometric auth, API mutual TLS, KYC re-verification triggers", "operational": "Real-time identity verification, behavioral biometrics, device fingerprinting"},
+    },
+    "Tampering": {
+        "mitre_controls": "Integrity monitoring, immutable audit logs, formal verification, code signing",
+        "nist_csf": {"function": "Protect (PR), Detect (DE)", "category": "PR.DS - Data Security, DE.CM - Continuous Monitoring", "controls": "PR.DS-6: Integrity checking mechanisms, DE.CM-3: Personnel activity monitoring, DE.CM-7: Monitoring for unauthorized entities"},
+        "iso27001": {"domain": "A.12 Operations Security, A.14 System Development", "controls": "A.12.4.1 Event logging, A.14.2.4 Restrictions on changes, A.14.1.2 Securing application services"},
+        "cbdc_specific": {"asap_controls": "Platform Layer: consensus integrity checks, ledger hash verification; Asset Layer: double-spend proofs, state validation", "operational": "Real-time transaction integrity monitoring, automated reconciliation, smart contract auditing"},
+    },
+    "Repudiation": {
+        "mitre_controls": "Immutable audit trails, digital signatures, non-repudiation logging, timestamping",
+        "nist_csf": {"function": "Protect (PR), Detect (DE)", "category": "PR.PT - Protective Technology, DE.AE - Anomalies and Events", "controls": "PR.PT-1: Audit/log records, DE.AE-3: Event data aggregation, DE.AE-5: Incident alert thresholds"},
+        "iso27001": {"domain": "A.12 Operations Security", "controls": "A.12.4.1 Event logging, A.12.4.2 Protection of log information, A.12.4.3 Administrator and operator logs"},
+        "cbdc_specific": {"asap_controls": "Platform Layer: write-once ledger, cryptographic timestamping; Service Layer: transaction receipts with digital signatures", "operational": "Tamper-evident logging, regulatory compliance reporting, dispute resolution trails"},
+    },
+    "Information Disclosure": {
+        "mitre_controls": "Encryption at rest and transit, data masking, zero-knowledge proofs, secure enclaves",
+        "nist_csf": {"function": "Protect (PR)", "category": "PR.DS - Data Security, PR.IP - Information Protection", "controls": "PR.DS-1: Data at rest protection, PR.DS-2: Data in transit protection, PR.DS-5: Protections against data leaks"},
+        "iso27001": {"domain": "A.10 Cryptography, A.13 Communications Security", "controls": "A.10.1.1 Cryptographic controls policy, A.13.1.1 Network controls, A.13.2.1 Information transfer policies"},
+        "cbdc_specific": {"asap_controls": "Access Layer: end-to-end encrypted wallet comms, PII minimization; Platform Layer: key sharding, HSM isolation", "operational": "Privacy-preserving analytics, differential privacy for transaction data, data classification"},
+    },
+    "Denial of Service": {
+        "mitre_controls": "DDoS mitigation, rate limiting, auto-scaling, circuit breakers, geographic distribution",
+        "nist_csf": {"function": "Protect (PR), Respond (RS)", "category": "PR.PT - Protective Technology, RS.MI - Mitigation", "controls": "PR.PT-4: Communications protection, RS.MI-1: Incidents are contained, RS.MI-2: Incidents are mitigated"},
+        "iso27001": {"domain": "A.13 Communications Security, A.17 Business Continuity", "controls": "A.13.1.1 Network controls, A.17.1.1 Planning information security continuity, A.17.2.1 Availability of facilities"},
+        "cbdc_specific": {"asap_controls": "Access Layer: API gateway rate limiting, CDN; Platform Layer: consensus resilience, node redundancy", "operational": "Capacity planning for national payment volumes, graceful degradation, offline payment fallback"},
+    },
+    "Elevation of Privilege": {
+        "mitre_controls": "Least privilege, RBAC, tier isolation, zero-trust architecture, privileged access management",
+        "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control, PR.PT - Protective Technology", "controls": "PR.AC-4: Access permissions managed, PR.AC-6: Identity proofing, PR.PT-3: Least functionality principle"},
+        "iso27001": {"domain": "A.9 Access Control, A.6 Organization of Information Security", "controls": "A.9.2.3 Privileged access management, A.9.4.1 Information access restriction, A.6.1.2 Segregation of duties"},
+        "cbdc_specific": {"asap_controls": "Service Layer: strict tier boundary enforcement, multi-party authorization for minting; Platform Layer: validator role separation", "operational": "Separation of duties for issuance, hardware-enforced access controls, regular privilege reviews"},
+    },
+}
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 8: CBDC Architecture
@@ -1867,17 +1906,428 @@ with tab8:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 9: Threat Catalogue
+# TAB 9: Threat Catalogue & Controls
 # ═══════════════════════════════════════════════════════════════════════════
 with tab9:
-    st.header("Threat Catalogue — MITRE ATT&CK for CBDC")
+    st.header("Threat Catalogue & Controls")
+    st.write(
+        "Simulation-driven threat catalogue with multi-framework control mappings. "
+        "Upload **cbdc_logs.csv** to unlock dynamic threat intelligence from RL agent simulations."
+    )
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Section 1: Simulation Intelligence Summary (requires CSV)
+    # ══════════════════════════════════════════════════════════════════════
+    if has_csv and not csv_empty:
+        st.subheader("Simulation Intelligence Summary")
+
+        # Explode stride_tags for attack events
+        _tc_attack = attack_df.copy()
+        _tc_stride_lists = _tc_attack["stride_tags"].dropna()
+        if not _tc_stride_lists.empty:
+            _tc_exploded = _tc_attack.explode("stride_tags")
+            _tc_exploded = _tc_exploded[_tc_exploded["stride_tags"].notna() & (_tc_exploded["stride_tags"] != "")]
+        else:
+            _tc_exploded = pd.DataFrame(columns=_tc_attack.columns)
+
+        # Map layers via PROCESS_LAYER_MAP
+        _tc_exploded["_mapped_layers"] = _tc_exploded["process"].map(
+            lambda p: PROCESS_LAYER_MAP.get(p, [])
+        )
+        _tc_layer_exploded = _tc_exploded.explode("_mapped_layers")
+        _tc_layer_exploded = _tc_layer_exploded[_tc_layer_exploded["_mapped_layers"].notna()]
+
+        # Unique threat combos
+        if not _tc_layer_exploded.empty:
+            _unique_threats = _tc_layer_exploded.groupby(
+                ["stride_tags", "process", "_mapped_layers"]
+            ).ngroups
+        else:
+            _unique_threats = 0
+
+        # Top STRIDE categories
+        if not _tc_exploded.empty:
+            _stride_freq = _tc_exploded["stride_tags"].value_counts()
+            _top_stride = _stride_freq.head(3)
+        else:
+            _stride_freq = pd.Series(dtype=int)
+            _top_stride = pd.Series(dtype=int)
+
+        # Most targeted layers
+        if not _tc_layer_exploded.empty:
+            _layer_freq = _tc_layer_exploded["_mapped_layers"].value_counts()
+        else:
+            _layer_freq = pd.Series(dtype=int)
+
+        # Most active RL agents
+        _tc_agents = _tc_attack[_tc_attack["agent_id"].notna()]
+        if not _tc_agents.empty:
+            _agent_freq = _tc_agents["agent_id"].value_counts()
+            _agent_success = _tc_agents.groupby("agent_id")["ok"].mean()
+        else:
+            _agent_freq = pd.Series(dtype=int)
+            _agent_success = pd.Series(dtype=float)
+
+        # Top agent success rate
+        _top_agent_sr = _agent_success.max() if not _agent_success.empty else 0.0
+
+        # Avg attack amount
+        _atk_amounts = _tc_attack["amount"].dropna()
+        _avg_amount = _atk_amounts.mean() if not _atk_amounts.empty else 0.0
+
+        # KPI row
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Unique Threat Types", f"{_unique_threats:,}")
+        k2.metric("Attack Events", f"{len(_tc_attack):,}")
+        k3.metric("Avg Attack Amount", f"{_avg_amount:,.2f}")
+        k4.metric("Top Agent Success Rate", f"{_top_agent_sr:.1%}")
+
+        # Detail columns
+        d1, d2, d3 = st.columns(3)
+        with d1:
+            st.markdown("**Top STRIDE Categories**")
+            for cat, cnt in _top_stride.items():
+                colour = STRIDE_COLOURS.get(cat, "#888")
+                st.markdown(f"- :{colour[1:]}[**{cat}**] — {cnt:,} events")
+        with d2:
+            st.markdown("**Most Targeted ASAP Layers**")
+            for layer, cnt in _layer_freq.head(4).items():
+                st.markdown(f"- **{layer}** — {cnt:,} events")
+        with d3:
+            st.markdown("**Most Active RL Agents**")
+            for agent, cnt in _agent_freq.head(4).items():
+                adv = AGENT_ADVERSARY_MAP.get(agent, "Unknown")
+                sr = _agent_success.get(agent, 0)
+                colour = AGENT_COLOURS.get(agent, "#888")
+                st.markdown(f"- :{colour[1:]}[**{agent}**] ({adv}) — {cnt:,} events, {sr:.0%} success")
+
+        st.divider()
+
+        # ══════════════════════════════════════════════════════════════════
+        # Section 2: Simulation-Driven Threat Catalogue Table
+        # ══════════════════════════════════════════════════════════════════
+        st.subheader("Simulation-Driven Threat Catalogue")
+
+        # Build threat catalogue from simulation data
+        _tc_grp = _tc_layer_exploded.copy()
+        if not _tc_grp.empty and "agent_id" in _tc_grp.columns:
+            _tc_grp["_agent"] = _tc_grp["agent_id"].fillna("Unknown")
+            _tc_grp["_amount"] = pd.to_numeric(_tc_grp["amount"], errors="coerce")
+            _tc_grp["_ok"] = pd.to_numeric(_tc_grp["ok"], errors="coerce")
+
+            threat_table = (
+                _tc_grp.groupby(["process", "_mapped_layers", "stride_tags", "_agent"])
+                .agg(
+                    event_count=("process", "size"),
+                    avg_amount=("_amount", "mean"),
+                    max_amount=("_amount", "max"),
+                    success_rate=("_ok", "mean"),
+                )
+                .reset_index()
+            )
+
+            # Map MITRE technique (best match via stride + layer)
+            def _match_mitre(row):
+                matches = MITRE_TECHNIQUES[
+                    (MITRE_TECHNIQUES["stride"] == row["stride_tags"])
+                    & (MITRE_TECHNIQUES["target_layer"] == row["_mapped_layers"])
+                ]
+                if matches.empty:
+                    matches = MITRE_TECHNIQUES[MITRE_TECHNIQUES["stride"] == row["stride_tags"]]
+                if not matches.empty:
+                    return matches.iloc[0]["technique_id"] + " — " + matches.iloc[0]["technique_name"]
+                return "—"
+
+            threat_table["mitre_technique"] = threat_table.apply(_match_mitre, axis=1)
+            threat_table["adversary"] = threat_table["_agent"].map(
+                lambda a: AGENT_ADVERSARY_MAP.get(a, "Unknown")
+            )
+
+            # ASAP components
+            threat_table["asap_components"] = threat_table["_mapped_layers"].map(
+                lambda l: ", ".join(
+                    k for k, v in COMPONENT_DETAILS.items()
+                    if v.get("layer", "") == l
+                ) if l else "—"
+            )
+
+            # Severity score: normalized 1–5
+            threat_table["_raw_sev"] = (
+                threat_table["event_count"]
+                * threat_table["avg_amount"].fillna(1)
+                * threat_table["success_rate"].fillna(0.5)
+            )
+            _max_sev = threat_table["_raw_sev"].max()
+            if _max_sev and _max_sev > 0:
+                threat_table["severity"] = (
+                    (threat_table["_raw_sev"] / _max_sev * 4 + 1).round().astype(int).clip(1, 5)
+                )
+            else:
+                threat_table["severity"] = 1
+
+            # Auto-generate Threat IDs
+            threat_table = threat_table.sort_values("severity", ascending=False).reset_index(drop=True)
+            threat_table.insert(0, "threat_id", [f"T-{i+1:03d}" for i in range(len(threat_table))])
+
+            # Display table
+            _sev_labels = {1: "Low", 2: "Low-Med", 3: "Medium", 4: "High", 5: "Critical"}
+            display_tt = threat_table[[
+                "threat_id", "stride_tags", "process", "_mapped_layers",
+                "mitre_technique", "_agent", "adversary", "event_count",
+                "avg_amount", "success_rate", "severity",
+            ]].copy()
+            display_tt.columns = [
+                "Threat ID", "STRIDE Category", "Process", "ASAP Layer",
+                "Mapped MITRE Technique", "RL Agent", "Mapped Adversary",
+                "Event Count", "Avg Amount", "Success Rate", "Severity",
+            ]
+            display_tt["Avg Amount"] = display_tt["Avg Amount"].round(2)
+            display_tt["Success Rate"] = (display_tt["Success Rate"] * 100).round(1).astype(str) + "%"
+            display_tt["Severity"] = display_tt["Severity"].map(
+                lambda s: f"{s} — {_sev_labels.get(s, '')}"
+            )
+
+            # Filters
+            fc1, fc2, fc3 = st.columns(3)
+            _tt_stride_opts = sorted(display_tt["STRIDE Category"].unique())
+            _tt_layer_opts = sorted(display_tt["ASAP Layer"].unique())
+            _tt_agent_opts = sorted(display_tt["RL Agent"].unique())
+            _tt_stride_sel = fc1.multiselect("Filter STRIDE", _tt_stride_opts, default=_tt_stride_opts, key="tc2_stride")
+            _tt_layer_sel = fc2.multiselect("Filter Layer", _tt_layer_opts, default=_tt_layer_opts, key="tc2_layer")
+            _tt_agent_sel = fc3.multiselect("Filter Agent", _tt_agent_opts, default=_tt_agent_opts, key="tc2_agent")
+
+            display_tt_filtered = display_tt[
+                display_tt["STRIDE Category"].isin(_tt_stride_sel)
+                & display_tt["ASAP Layer"].isin(_tt_layer_sel)
+                & display_tt["RL Agent"].isin(_tt_agent_sel)
+            ]
+            st.dataframe(display_tt_filtered, use_container_width=True, hide_index=True, height=450)
+            st.caption(f"Showing {len(display_tt_filtered)} of {len(display_tt)} identified threat entries.")
+        else:
+            threat_table = pd.DataFrame()
+            st.info("No attack events with layer mappings found for threat catalogue generation.")
+
+        st.divider()
+
+        # ══════════════════════════════════════════════════════════════════
+        # Section 4: Simulation-Enhanced Controls Effectiveness
+        # ══════════════════════════════════════════════════════════════════
+        st.subheader("Controls Gap Analysis")
+
+        if not _tc_exploded.empty:
+            _gap_data = []
+            for cat in STRIDE_CATEGORIES:
+                _cat_rows = _tc_exploded[_tc_exploded["stride_tags"] == cat]
+                if _cat_rows.empty:
+                    continue
+                _total = len(_cat_rows)
+                _ok_vals = pd.to_numeric(_cat_rows["ok"], errors="coerce")
+                _success = _ok_vals.mean() if _ok_vals.notna().any() else 0.0
+                _amt = pd.to_numeric(_cat_rows["amount"], errors="coerce")
+                _avg_a = _amt.mean() if _amt.notna().any() else 0.0
+                if _success >= 0.7:
+                    _priority = "Critical"
+                elif _success >= 0.5:
+                    _priority = "High"
+                elif _success >= 0.3:
+                    _priority = "Medium"
+                else:
+                    _priority = "Low"
+                _fw = CONTROLS_FRAMEWORK.get(cat, {})
+                _gap_data.append({
+                    "STRIDE Category": cat,
+                    "Sim Attacks": _total,
+                    "Sim Success Rate": f"{_success:.1%}",
+                    "Avg Amount": round(_avg_a, 2),
+                    "Recommended Priority": _priority,
+                    "Framework Controls": _fw.get("mitre_controls", "—"),
+                    "_success_raw": _success,
+                    "_freq_raw": _total,
+                    "_amt_raw": _avg_a,
+                })
+
+            if _gap_data:
+                gap_df = pd.DataFrame(_gap_data)
+                st.dataframe(
+                    gap_df[["STRIDE Category", "Sim Attacks", "Sim Success Rate",
+                            "Avg Amount", "Recommended Priority", "Framework Controls"]],
+                    use_container_width=True, hide_index=True,
+                )
+
+                # Scatter plot: frequency vs success rate
+                scatter_df = gap_df.copy()
+                scatter_df["_success_pct"] = scatter_df["_success_raw"] * 100
+                fig = px.scatter(
+                    scatter_df,
+                    x="_freq_raw", y="_success_pct",
+                    size="_amt_raw", color="STRIDE Category",
+                    color_discrete_map=STRIDE_COLOURS,
+                    hover_data={"STRIDE Category": True, "Sim Attacks": True,
+                                "Sim Success Rate": True, "_freq_raw": False,
+                                "_success_pct": False, "_amt_raw": False},
+                    title="Controls Weakness Map — Attack Frequency vs Success Rate",
+                    labels={"_freq_raw": "Attack Frequency", "_success_pct": "Success Rate (%)"},
+                )
+                fig.update_layout(height=450)
+                fig.update_traces(marker=dict(sizemin=8))
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No STRIDE-tagged attack data available for gap analysis.")
+        else:
+            st.info("No attack events with STRIDE tags available for gap analysis.")
+
+        st.divider()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Section 3: Multi-Framework Controls Mapping (always shown)
+    # ══════════════════════════════════════════════════════════════════════
+    st.subheader("Multi-Framework Controls Mapping")
+    st.write(
+        "Controls mapped across **MITRE ATT&CK**, **NIST CSF**, **ISO 27001**, "
+        "and **CBDC/ASAP-specific** frameworks for each STRIDE threat category."
+    )
+
+    # Compute observation counts from simulation (if available)
+    _obs_counts = {}
+    if has_csv and not csv_empty:
+        _tc_attack_obs = attack_df.copy()
+        _tc_obs_exploded = _tc_attack_obs.explode("stride_tags")
+        _tc_obs_exploded = _tc_obs_exploded[_tc_obs_exploded["stride_tags"].notna() & (_tc_obs_exploded["stride_tags"] != "")]
+        if not _tc_obs_exploded.empty:
+            _obs_counts = _tc_obs_exploded["stride_tags"].value_counts().to_dict()
+
+    # Controls Dashboard — expanders per STRIDE category
+    for _cat in STRIDE_CATEGORIES:
+        _fw = CONTROLS_FRAMEWORK.get(_cat, {})
+        _obs = _obs_counts.get(_cat, 0)
+        _badge = f" — **{_obs:,} simulation events**" if _obs else ""
+        _colour = STRIDE_COLOURS.get(_cat, "#888")
+
+        with st.expander(f"{_cat}{_badge}", expanded=(_obs > 0)):
+            if _obs:
+                st.markdown(f"Observed **{_obs:,}** attack events in simulation data for this category.")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**MITRE ATT&CK Controls**")
+                st.markdown(f"> {_fw.get('mitre_controls', '—')}")
+
+                nist = _fw.get("nist_csf", {})
+                st.markdown("**NIST CSF Mapping**")
+                st.markdown(f"- **Function:** {nist.get('function', '—')}")
+                st.markdown(f"- **Category:** {nist.get('category', '—')}")
+                st.markdown(f"- **Controls:** {nist.get('controls', '—')}")
+
+            with c2:
+                iso = _fw.get("iso27001", {})
+                st.markdown("**ISO 27001 Mapping**")
+                st.markdown(f"- **Domain:** {iso.get('domain', '—')}")
+                st.markdown(f"- **Controls:** {iso.get('controls', '—')}")
+
+                cbdc = _fw.get("cbdc_specific", {})
+                st.markdown("**CBDC / ASAP-Specific Controls**")
+                st.markdown(f"- **ASAP Controls:** {cbdc.get('asap_controls', '—')}")
+                st.markdown(f"- **Operational:** {cbdc.get('operational', '—')}")
+
+    # Cross-Framework Matrix heatmap
+    st.subheader("Cross-Framework Coverage Matrix")
+    _fw_pillars = ["MITRE ATT&CK", "NIST CSF", "ISO 27001", "CBDC-Specific"]
+    _matrix_data = []
+    for _cat in STRIDE_CATEGORIES:
+        _fw = CONTROLS_FRAMEWORK.get(_cat, {})
+        _mitre_count = len(_fw.get("mitre_controls", "").split(",")) if _fw.get("mitre_controls") else 0
+        _nist_count = len(_fw.get("nist_csf", {}).get("controls", "").split(",")) if _fw.get("nist_csf", {}).get("controls") else 0
+        _iso_count = len(_fw.get("iso27001", {}).get("controls", "").split(",")) if _fw.get("iso27001", {}).get("controls") else 0
+        _cbdc_count = (
+            len(_fw.get("cbdc_specific", {}).get("asap_controls", "").split(","))
+            + len(_fw.get("cbdc_specific", {}).get("operational", "").split(","))
+        ) if _fw.get("cbdc_specific") else 0
+        _matrix_data.append([_mitre_count, _nist_count, _iso_count, _cbdc_count])
+
+    _matrix_arr = np.array(_matrix_data)
+    fig = px.imshow(
+        _matrix_arr,
+        x=_fw_pillars, y=STRIDE_CATEGORIES,
+        text_auto=True, aspect="auto",
+        color_continuous_scale="Blues",
+        title="STRIDE × Framework Coverage Density (Control Count)",
+        labels=dict(color="Controls"),
+    )
+    fig.update_layout(xaxis_tickangle=-15, height=400)
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Section 5: Exportable Summary
+    # ══════════════════════════════════════════════════════════════════════
+    if has_csv and not csv_empty:
+        st.subheader("Exportable Report Summary")
+        with st.expander("Generate Report Summary", expanded=False):
+            _report_lines = []
+            _report_lines.append("# CBDC Threat Catalogue & Controls — Simulation Report\n")
+            _report_lines.append(f"**Generated from simulation data**\n")
+            _report_lines.append(f"## Threat Landscape Overview")
+            _report_lines.append(f"- **Unique threat types identified:** {_unique_threats}")
+            _report_lines.append(f"- **Total attack events analysed:** {len(_tc_attack):,}")
+            _report_lines.append(f"- **Average attack amount:** {_avg_amount:,.2f}")
+            _report_lines.append(f"- **Top agent success rate:** {_top_agent_sr:.1%}\n")
+
+            # Top 3 most critical threats
+            if not threat_table.empty:
+                _report_lines.append("## Top 3 Most Critical Threats")
+                for _, _row in threat_table.head(3).iterrows():
+                    _report_lines.append(
+                        f"- **{_row['threat_id']}** — {_row['stride_tags']} via "
+                        f"{_row['_agent']} on {_row['process']} ({_row['_mapped_layers']} layer) "
+                        f"| Events: {_row['event_count']}, Success: {_row['success_rate']:.0%}, "
+                        f"Severity: {_row['severity']}/5"
+                    )
+                _report_lines.append("")
+
+            # Top controls per framework
+            _report_lines.append("## Recommended Controls by Framework")
+            _observed_cats = [c for c in STRIDE_CATEGORIES if _obs_counts.get(c, 0) > 0]
+            _top_cats = sorted(_observed_cats, key=lambda c: _obs_counts.get(c, 0), reverse=True)[:3]
+            for _cat in _top_cats:
+                _fw = CONTROLS_FRAMEWORK.get(_cat, {})
+                _report_lines.append(f"\n### {_cat} ({_obs_counts.get(_cat, 0):,} events)")
+                _report_lines.append(f"- **MITRE:** {_fw.get('mitre_controls', '—')}")
+                _nist = _fw.get('nist_csf', {})
+                _report_lines.append(f"- **NIST CSF:** {_nist.get('function', '')} — {_nist.get('controls', '—')}")
+                _iso = _fw.get('iso27001', {})
+                _report_lines.append(f"- **ISO 27001:** {_iso.get('domain', '')} — {_iso.get('controls', '—')}")
+                _cbdc = _fw.get('cbdc_specific', {})
+                _report_lines.append(f"- **CBDC-Specific:** {_cbdc.get('asap_controls', '—')}")
+
+            # Risk posture
+            _report_lines.append("\n## Overall Risk Posture Assessment")
+            if _top_agent_sr >= 0.6:
+                _posture = "HIGH RISK — Simulation shows elevated attack success rates across agents. Immediate control strengthening recommended."
+            elif _top_agent_sr >= 0.35:
+                _posture = "MODERATE RISK — Some agents demonstrate meaningful success. Targeted control improvements advised."
+            else:
+                _posture = "LOW-MODERATE RISK — Attack success rates are contained. Maintain monitoring and periodic review."
+            _report_lines.append(_posture)
+
+            _report_text = "\n".join(_report_lines)
+            st.markdown(_report_text)
+            st.code(_report_text, language="markdown")
+            st.caption("Copy the markdown above for use in your thesis or reports.")
+
+    st.divider()
+
+    # ══════════════════════════════════════════════════════════════════════
+    # Fallback: Static MITRE Catalogue (always available)
+    # ══════════════════════════════════════════════════════════════════════
+    st.subheader("MITRE ATT&CK Reference Catalogue")
     st.write(
         "Structured mapping of **MITRE ATT&CK techniques** adapted for CBDC threat modelling, "
         "including CBDC-specific extensions (CBDC-NEW-xx)."
     )
 
-    # ── 1. Kill Chain View ────────────────────────────────────────────────
-    st.subheader("Kill Chain View")
+    # Kill Chain View
+    st.markdown("#### Kill Chain View")
     tactic_counts = MITRE_TECHNIQUES.groupby("tactic").agg(
         total=("technique_id", "size"),
         cbdc_new=("is_cbdc_new", "sum"),
@@ -1900,8 +2350,8 @@ with tab9:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── 2. Technique Table ────────────────────────────────────────────────
-    st.subheader("Technique Table")
+    # Technique Table
+    st.markdown("#### Technique Table")
     display_techniques = MITRE_TECHNIQUES[[
         "tactic", "technique_id", "technique_name", "cbdc_application",
         "target_layer", "stride", "adversaries",
@@ -1925,8 +2375,8 @@ with tab9:
     ]
     st.dataframe(filtered_techniques, use_container_width=True, hide_index=True, height=400)
 
-    # ── 3. STRIDE × MITRE Cross-Reference Heatmap ────────────────────────
-    st.subheader("STRIDE × MITRE Tactic Heatmap")
+    # STRIDE × MITRE Heatmap
+    st.markdown("#### STRIDE × MITRE Tactic Heatmap")
     cross_ref = MITRE_TECHNIQUES.groupby(["stride", "tactic"]).size().reset_index(name="count")
     cross_pivot = cross_ref.pivot(index="stride", columns="tactic", values="count").fillna(0)
     cross_pivot = cross_pivot.reindex(index=STRIDE_CATEGORIES, columns=TACTIC_ORDER, fill_value=0)
@@ -1942,8 +2392,8 @@ with tab9:
     fig.update_layout(xaxis_tickangle=-35, height=400)
     st.plotly_chart(fig, use_container_width=True)
 
-    # ── 4. Technique Detail ──────────────────────────────────────────────
-    st.subheader("Technique Detail")
+    # Technique Detail
+    st.markdown("#### Technique Detail")
     tech_options = MITRE_TECHNIQUES["technique_id"] + " — " + MITRE_TECHNIQUES["technique_name"]
     selected_tech = st.selectbox("Select technique", tech_options.tolist(), key="tc_detail")
     tech_id = selected_tech.split(" — ")[0]
