@@ -1442,7 +1442,7 @@ COMPONENT_DETAILS = {
         "layer": "Asset", "tier": "Central Bank",
         "functions": "Controls CBDC issuance (minting) and destruction (burning); enforces monetary policy.",
         "attack_surface": "Unauthorized minting, insider abuse of issuance controls, policy bypass.",
-        "stride": [, "Tampering"],
+        "stride": ["Tampering"],
         "mitre": ["CBDC-NEW-11", "T1098"],
         "connected": ["Core Ledger", "Asset Lifecycle Manager", "Token/Account State"],
     },
