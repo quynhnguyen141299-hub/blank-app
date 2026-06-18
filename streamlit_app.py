@@ -2439,45 +2439,8 @@ with tab9:
 # ═══════════════════════════════════════════════════════════════════════════
 # TAB 10: Adversary Profiles
 # ═══════════════════════════════════════════════════════════════════════════
-with tab10:
-    st.header("Adversary Profiles — Threat Actor Intelligence")
-    st.write(
-        "Interactive profiles of **6 adversary classes** targeting CBDC infrastructure, "
-        "with capability assessments, target preferences, and STRIDE analysis."
-    )
 
-    adv_names = list(ADVERSARIES.keys())
-    radar_attrs = ["capability", "resources", "sophistication", "persistence", "motivation_score"]
-    radar_labels = ["Capability", "Resources", "Sophistication", "Persistence", "Motivation"]
-
-    # ── 1. Adversary Radar Charts ─────────────────────────────────────────
-    st.subheader("Adversary Capability Radar")
-    selected_adversaries = st.multiselect(
-        "Select adversaries to compare", adv_names, default=adv_names, key="adv_radar_select"
-    )
-
-    if selected_adversaries:
-        fig = go.Figure()
-        adv_colors = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#19D3F3"]
-        for i, adv in enumerate(selected_adversaries):
-            vals = [ADVERSARIES[adv][a] for a in radar_attrs]
-            vals.append(vals[0])  # close the polygon
-            fig.add_trace(go.Scatterpolar(
-                r=vals,
-                theta=radar_labels + [radar_labels[0]],
-                fill="toself",
-                name=adv,
-                line_color=adv_colors[i % len(adv_colors)],
-                opacity=0.7,
-            ))
-        fig.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 10])),
-            title="Adversary Capability Comparison",
-            height=500,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ── 2. Target Preference Matrix ──────────────────────────────────────
+    # ── 1. Target Preference Matrix ──────────────────────────────────────
     st.subheader("Target Preference Matrix (Adversary × ASAP Layer)")
     layer_names_list = ["Platform", "Asset", "Service", "Access"]
     target_matrix = []
