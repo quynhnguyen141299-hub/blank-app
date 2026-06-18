@@ -25,10 +25,8 @@ AGENT_COLOURS = {
 STRIDE_COLOURS = {
     "Spoofing": "#636EFA",
     "Tampering": "#EF553B",
-    "Repudiation": "#00CC96",
     "Information Disclosure": "#AB63FA",
     "Denial of Service": "#FFA15A",
-    "Elevation of Privilege": "#19D3F3",
 }
 
 st.set_page_config(page_title=APP_NAME, layout="wide")
@@ -186,8 +184,8 @@ def load_logs(uploaded_file):
         df["asap_layer_enc"] = df["asap_layer"].fillna("unknown").astype("category").cat.codes
 
     _STRIDE_TAGS = [
-        "Spoofing", "Tampering", "Repudiation",
-        "Information Disclosure", "Denial of Service", "Elevation of Privilege",
+        "Spoofing", "Tampering", 
+        "Information Disclosure", "Denial of Service" 
     ]
     for _tag in _STRIDE_TAGS:
         df[f"stride_{_tag.lower().replace(' ', '_')}"] = df["stride_tags"].apply(
@@ -284,7 +282,6 @@ else:
         "asap_layer_enc": pd.Series(dtype="int64"),
         "stride_spoofing": pd.Series(dtype="int64"),
         "stride_tampering": pd.Series(dtype="int64"),
-        "stride_repudiation": pd.Series(dtype="int64"),
         "stride_information_disclosure": pd.Series(dtype="int64"),
         "stride_denial_of_service": pd.Series(dtype="int64"),
         "stride_elevation_of_privilege": pd.Series(dtype="int64"),
@@ -641,10 +638,8 @@ with tab3:
                 "stride_count",
                 "stride_spoofing",
                 "stride_tampering",
-                "stride_repudiation",
                 "stride_information_disclosure",
                 "stride_denial_of_service",
-                "stride_elevation_of_privilege",
             ]
             if ml_df["complexity"].notna().sum() > 5:
                 feat_cols.append("complexity")
@@ -1416,7 +1411,7 @@ COMPONENT_DETAILS = {
         "layer": "Platform", "tier": "Central Bank",
         "functions": "Immutable record of all CBDC transactions; maintains global state of balances and ownership.",
         "attack_surface": "Direct ledger manipulation, Byzantine faults, storage corruption, unauthorized state changes.",
-        "stride": ["Tampering", "Repudiation", "Denial of Service"],
+        "stride": ["Tampering", "Denial of Service"],
         "mitre": ["T1485", "CBDC-NEW-10"],
         "connected": ["Consensus Nodes", "Settlement Engine", "Minting Authority"],
     },
@@ -1440,7 +1435,7 @@ COMPONENT_DETAILS = {
         "layer": "Platform", "tier": "Central Bank",
         "functions": "Generates, stores, rotates, and manages cryptographic keys for signing and encryption.",
         "attack_surface": "Key extraction via side-channel, insider theft, HSM bypass, weak key generation.",
-        "stride": ["Information Disclosure", "Elevation of Privilege", "Tampering"],
+        "stride": ["Information Disclosure", , "Tampering"],
         "mitre": ["CBDC-NEW-07", "T1068"],
         "connected": ["Core Ledger", "Minting Authority", "Wallet Providers"],
     },
@@ -1448,7 +1443,7 @@ COMPONENT_DETAILS = {
         "layer": "Asset", "tier": "Central Bank",
         "functions": "Controls CBDC issuance (minting) and destruction (burning); enforces monetary policy.",
         "attack_surface": "Unauthorized minting, insider abuse of issuance controls, policy bypass.",
-        "stride": ["Elevation of Privilege", "Tampering"],
+        "stride": [, "Tampering"],
         "mitre": ["CBDC-NEW-11", "T1098"],
         "connected": ["Core Ledger", "Asset Lifecycle Manager", "Token/Account State"],
     },
@@ -1456,7 +1451,7 @@ COMPONENT_DETAILS = {
         "layer": "Asset", "tier": "Central Bank",
         "functions": "Tracks current ownership, balances, and token metadata for all CBDC units.",
         "attack_surface": "State manipulation, double-spend via state forking, balance inflation.",
-        "stride": ["Tampering", "Repudiation"],
+        "stride": ["Tampering"],
         "mitre": ["CBDC-NEW-10", "T1070"],
         "connected": ["Core Ledger", "UTXO Store", "Minting Authority"],
     },
@@ -1472,7 +1467,7 @@ COMPONENT_DETAILS = {
         "layer": "Asset", "tier": "Central Bank",
         "functions": "Orchestrates the full lifecycle: issuance → circulation → redemption of CBDC tokens.",
         "attack_surface": "Lifecycle bypass allowing tokens to skip validation stages.",
-        "stride": ["Tampering", "Elevation of Privilege"],
+        "stride": ["Tampering", ],
         "mitre": ["T1098", "CBDC-NEW-11"],
         "connected": ["Minting Authority", "Token/Account State", "Payment Processor"],
     },
@@ -1488,7 +1483,7 @@ COMPONENT_DETAILS = {
         "layer": "Service", "tier": "Both",
         "functions": "Screens transactions for anti-money laundering and counter-terrorism financing compliance.",
         "attack_surface": "Rule evasion via structuring, false negative injection, threshold gaming.",
-        "stride": ["Tampering", "Spoofing", "Repudiation"],
+        "stride": ["Tampering", "Spoofing"],
         "mitre": ["CBDC-NEW-06", "T1036"],
         "connected": ["Payment Processor", "KYC/IAM System", "Oracle Interface"],
     },
@@ -1496,7 +1491,7 @@ COMPONENT_DETAILS = {
         "layer": "Service", "tier": "Both",
         "functions": "Executes programmable logic for conditional payments, escrow, and automated compliance.",
         "attack_surface": "Reentrancy, logic bombs, gas manipulation, malicious contract deployment.",
-        "stride": ["Tampering", "Elevation of Privilege"],
+        "stride": ["Tampering", ],
         "mitre": ["T1059", "CBDC-NEW-02"],
         "connected": ["Core Ledger", "Payment Processor", "Oracle Interface"],
     },
@@ -1512,7 +1507,7 @@ COMPONENT_DETAILS = {
         "layer": "Service", "tier": "Intermediary / Retail",
         "functions": "Enables CBDC transactions without network connectivity using stored value.",
         "attack_surface": "Offline token replay, double-spend in disconnected mode, delayed reconciliation exploits.",
-        "stride": ["Spoofing", "Repudiation", "Tampering"],
+        "stride": ["Spoofing", "Tampering"],
         "mitre": ["CBDC-NEW-12", "CBDC-NEW-10"],
         "connected": ["Wallet Providers", "Payment Processor"],
     },
@@ -1552,7 +1547,7 @@ COMPONENT_DETAILS = {
         "layer": "Access", "tier": "Both",
         "functions": "Central entry point for all API calls; handles rate limiting, authentication, routing.",
         "attack_surface": "API abuse, injection attacks, DDoS, authentication bypass.",
-        "stride": ["Denial of Service", "Spoofing", "Elevation of Privilege"],
+        "stride": ["Denial of Service", "Spoofing", ],
         "mitre": ["T1190", "T1595", "T1489"],
         "connected": ["Wallet Providers", "Payment Processor", "KYC/IAM System"],
     },
@@ -1568,7 +1563,7 @@ COMPONENT_DETAILS = {
         "layer": "Access", "tier": "Both",
         "functions": "Manages identity verification, KYC compliance, and access management.",
         "attack_surface": "Identity fraud, credential stuffing, synthetic identity, PII harvesting.",
-        "stride": ["Spoofing", "Information Disclosure", "Repudiation"],
+        "stride": ["Spoofing", "Information Disclosure"],
         "mitre": ["T1078", "T1136", "T1119", "T1589"],
         "connected": ["Wallet Providers", "AML/CFT Engine", "API Gateways"],
     },
@@ -1579,32 +1574,32 @@ MITRE_TECHNIQUES = pd.DataFrame([
     {"tactic": "Reconnaissance", "tactic_id": "TA0043", "technique_id": "T1592", "technique_name": "Gather Victim Host Info", "cbdc_application": "Profiling wallet software versions", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Fingerprinting wallet app versions to identify known vulnerabilities.", "controls": "Version obfuscation, runtime integrity checks"},
     {"tactic": "Reconnaissance", "tactic_id": "TA0043", "technique_id": "T1589", "technique_name": "Gather Victim Identity", "cbdc_application": "Mapping wallet addresses to real identities", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Correlating on-chain CBDC transactions with social media to de-anonymize users.", "controls": "Privacy-preserving design, address rotation, zero-knowledge proofs"},
     {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1566", "technique_name": "Phishing", "cbdc_application": "Credential harvesting for wallet/intermediary access", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Phishing emails impersonating CBDC wallet provider to steal login credentials.", "controls": "MFA, user awareness training, email filtering, domain monitoring"},
-    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1190", "technique_name": "Exploit Public-Facing Application", "cbdc_application": "Exploiting API gateway vulnerabilities", "target_layer": "Access", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime, Hacktivist", "is_cbdc_new": False, "example_scenario": "Exploiting unpatched API gateway to gain unauthorized access to backend services.", "controls": "WAF, regular patching, penetration testing, input validation"},
+    {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1190", "technique_name": "Exploit Public-Facing Application", "cbdc_application": "Exploiting API gateway vulnerabilities", "target_layer": "Access",, "adversaries": "Nation-State, Organised Crime, Hacktivist", "is_cbdc_new": False, "example_scenario": "Exploiting unpatched API gateway to gain unauthorized access to backend services.", "controls": "WAF, regular patching, penetration testing, input validation"},
     {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "T1078", "technique_name": "Valid Accounts", "cbdc_application": "Using compromised intermediary credentials", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Malicious Insider, Organised Crime", "is_cbdc_new": False, "example_scenario": "Using stolen credentials of a commercial bank operator to access wholesale network.", "controls": "MFA, privileged access management, behavioral analytics, session monitoring"},
     {"tactic": "Initial Access", "tactic_id": "TA0001", "technique_id": "CBDC-NEW-01", "technique_name": "Malicious Wallet Distribution", "cbdc_application": "Distributing trojanised wallet apps", "target_layer": "Access", "stride": "Tampering", "adversaries": "Organised Crime, Compromised Third-Party", "is_cbdc_new": True, "example_scenario": "Publishing a fake CBDC wallet app on app stores that steals private keys.", "controls": "App store verification, code signing, wallet attestation, supply chain security"},
     {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "T1059", "technique_name": "Command and Scripting", "cbdc_application": "Exploiting smart contract execution", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Injecting malicious code into smart contract execution to redirect funds.", "controls": "Formal verification, code auditing, execution sandboxing, gas limits"},
     {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "CBDC-NEW-02", "technique_name": "Malicious Smart Contract Deployment", "cbdc_application": "Deploying contracts that drain funds", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Deploying a contract with hidden reentrancy vulnerability to drain escrow funds.", "controls": "Contract whitelisting, formal verification, deployment approvals, upgrade controls"},
     {"tactic": "Execution", "tactic_id": "TA0002", "technique_id": "CBDC-NEW-03", "technique_name": "Oracle Data Injection", "cbdc_application": "Feeding false data to price/state oracles", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Manipulating exchange rate oracle to profit from cross-border CBDC transactions.", "controls": "Multiple oracle sources, median aggregation, anomaly detection, trusted execution environments"},
-    {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "T1098", "technique_name": "Account Manipulation", "cbdc_application": "Modifying intermediary access controls", "target_layer": "Access", "stride": "Elevation of Privilege", "adversaries": "Malicious Insider, Nation-State", "is_cbdc_new": False, "example_scenario": "Modifying role assignments to elevate retail operator to wholesale access level.", "controls": "Role-based access control, audit logging, separation of duties, periodic access reviews"},
+    {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "T1098", "technique_name": "Account Manipulation", "cbdc_application": "Modifying intermediary access controls", "target_layer": "Access",, "adversaries": "Malicious Insider, Nation-State", "is_cbdc_new": False, "example_scenario": "Modifying role assignments to elevate retail operator to wholesale access level.", "controls": "Role-based access control, audit logging, separation of duties, periodic access reviews"},
     {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "T1136", "technique_name": "Create Account", "cbdc_application": "Creating fraudulent wallet identities", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Creating synthetic identities to open multiple wallets for money laundering.", "controls": "Enhanced KYC, biometric verification, identity graph analysis, velocity checks"},
     {"tactic": "Persistence", "tactic_id": "TA0003", "technique_id": "CBDC-NEW-04", "technique_name": "Consensus Node Infiltration", "cbdc_application": "Gaining persistent access to validator nodes", "target_layer": "Platform", "stride": "Tampering", "adversaries": "Nation-State", "is_cbdc_new": True, "example_scenario": "Compromising a validator node to persistently influence consensus outcomes.", "controls": "Node integrity monitoring, hardware attestation, validator rotation, Byzantine fault tolerance"},
-    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "T1068", "technique_name": "Exploitation for Privilege Escalation", "cbdc_application": "Escalating from retail to wholesale access", "target_layer": "Platform", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Exploiting a vulnerability to escalate from intermediary access to central bank tier.", "controls": "Network segmentation, tier isolation, least privilege, vulnerability management"},
-    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "CBDC-NEW-05", "technique_name": "Intermediary Role Escalation", "cbdc_application": "Exploiting two-tier boundary to gain central bank tier access", "target_layer": "Service", "stride": "Elevation of Privilege", "adversaries": "Organised Crime, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Exploiting misconfigured API to access central bank minting functions from retail tier.", "controls": "Strict tier boundary enforcement, API gateway policies, zero-trust architecture"},
-    {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "T1070", "technique_name": "Indicator Removal", "cbdc_application": "Erasing transaction traces", "target_layer": "Platform", "stride": "Repudiation", "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Deleting or modifying audit logs to hide unauthorized minting activity.", "controls": "Immutable audit logs, write-once storage, log integrity verification, SIEM monitoring"},
+    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "T1068", "technique_name": "Exploitation for Privilege Escalation", "cbdc_application": "Escalating from retail to wholesale access", "target_layer": "Platform",, "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Exploiting a vulnerability to escalate from intermediary access to central bank tier.", "controls": "Network segmentation, tier isolation, least privilege, vulnerability management"},
+    {"tactic": "Privilege Escalation", "tactic_id": "TA0004", "technique_id": "CBDC-NEW-05", "technique_name": "Intermediary Role Escalation", "cbdc_application": "Exploiting two-tier boundary to gain central bank tier access", "target_layer": "Service",, "adversaries": "Organised Crime, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Exploiting misconfigured API to access central bank minting functions from retail tier.", "controls": "Strict tier boundary enforcement, API gateway policies, zero-trust architecture"},
+    {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "T1070", "technique_name": "Indicator Removal", "cbdc_application": "Erasing transaction traces", "target_layer": "Platform", "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Deleting or modifying audit logs to hide unauthorized minting activity.", "controls": "Immutable audit logs, write-once storage, log integrity verification, SIEM monitoring"},
     {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "T1036", "technique_name": "Masquerading", "cbdc_application": "Disguising attack transactions as legitimate payments", "target_layer": "Service", "stride": "Spoofing", "adversaries": "Organised Crime, Compromised Third-Party", "is_cbdc_new": False, "example_scenario": "Disguising money laundering transactions as legitimate merchant payments.", "controls": "Behavioral analytics, transaction pattern analysis, anomaly detection"},
     {"tactic": "Defense Evasion", "tactic_id": "TA0005", "technique_id": "CBDC-NEW-06", "technique_name": "Transaction Structuring", "cbdc_application": "Splitting amounts below AML thresholds (smurfing)", "target_layer": "Service", "stride": "Tampering", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": True, "example_scenario": "Breaking large transfers into many small transactions to evade AML detection rules.", "controls": "Aggregate monitoring, velocity checks, graph-based analytics, adaptive thresholds"},
     {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "T1110", "technique_name": "Brute Force", "cbdc_application": "Attacking wallet PINs/passwords", "target_layer": "Access", "stride": "Spoofing", "adversaries": "Organised Crime, End-User Fraud", "is_cbdc_new": False, "example_scenario": "Brute-forcing wallet PINs to gain access to user funds.", "controls": "Account lockout, rate limiting, biometric authentication, hardware tokens"},
     {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "T1557", "technique_name": "Adversary-in-the-Middle", "cbdc_application": "Intercepting wallet-to-intermediary communications", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "MitM attack on wallet-to-bank API to intercept transaction signing keys.", "controls": "Certificate pinning, mutual TLS, end-to-end encryption, channel binding"},
     {"tactic": "Credential Access", "tactic_id": "TA0006", "technique_id": "CBDC-NEW-07", "technique_name": "Private Key Extraction", "cbdc_application": "Side-channel attacks on hardware wallet/KMS", "target_layer": "Platform", "stride": "Information Disclosure", "adversaries": "Nation-State", "is_cbdc_new": True, "example_scenario": "Using power analysis side-channel attack to extract KMS master key from HSM.", "controls": "Side-channel resistant HSMs, key sharding, multi-party computation, regular key rotation"},
-    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "T1021", "technique_name": "Remote Services", "cbdc_application": "Moving between intermediary systems", "target_layer": "Service", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Using compromised intermediary credentials to pivot to other financial institutions.", "controls": "Network segmentation, micro-segmentation, just-in-time access, behavioral monitoring"},
-    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "CBDC-NEW-08", "technique_name": "Cross-Tier Pivot", "cbdc_application": "Leveraging retail compromise to access wholesale network", "target_layer": "Platform", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Pivoting from compromised retail wallet provider to wholesale settlement network.", "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture"},
+    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "T1021", "technique_name": "Remote Services", "cbdc_application": "Moving between intermediary systems", "target_layer": "Service",, "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": False, "example_scenario": "Using compromised intermediary credentials to pivot to other financial institutions.", "controls": "Network segmentation, micro-segmentation, just-in-time access, behavioral monitoring"},
+    {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "CBDC-NEW-08", "technique_name": "Cross-Tier Pivot", "cbdc_application": "Leveraging retail compromise to access wholesale network", "target_layer": "Platform",, "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Pivoting from compromised retail wallet provider to wholesale settlement network.", "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture"},
     {"tactic": "Lateral Movement", "tactic_id": "TA0008", "technique_id": "CBDC-NEW-09", "technique_name": "Bridge Exploitation", "cbdc_application": "Attacking interoperability bridges to reach other CBDC platforms", "target_layer": "Service", "stride": "Tampering", "adversaries": "Nation-State, Organised Crime", "is_cbdc_new": True, "example_scenario": "Exploiting cross-border CBDC bridge to drain liquidity from foreign CBDC system.", "controls": "Bridge security audits, rate limiting, multi-sig validation, circuit breakers"},
     {"tactic": "Collection", "tactic_id": "TA0009", "technique_id": "T1005", "technique_name": "Data from Local System", "cbdc_application": "Harvesting wallet transaction history", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Extracting complete transaction history from compromised wallet application.", "controls": "Data encryption at rest, secure enclaves, minimal data retention, access logging"},
     {"tactic": "Collection", "tactic_id": "TA0009", "technique_id": "T1119", "technique_name": "Automated Collection", "cbdc_application": "Bulk extraction of PII from KYC databases", "target_layer": "Access", "stride": "Information Disclosure", "adversaries": "Nation-State, Organised Crime, Malicious Insider", "is_cbdc_new": False, "example_scenario": "Automated scraping of KYC database to harvest personal identity documents.", "controls": "Data loss prevention, query rate limiting, database activity monitoring, encryption"},
     {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "T1485", "technique_name": "Data Destruction", "cbdc_application": "Destroying ledger records", "target_layer": "Platform", "stride": "Denial of Service", "adversaries": "Nation-State, Hacktivist", "is_cbdc_new": False, "example_scenario": "Wiping or corrupting ledger data to disrupt national payment infrastructure.", "controls": "Immutable ledger design, geo-distributed backups, Byzantine fault tolerance, disaster recovery"},
     {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "T1489", "technique_name": "Service Stop", "cbdc_application": "DDoS on CBDC payment infrastructure", "target_layer": "Access", "stride": "Denial of Service", "adversaries": "Hacktivist, Nation-State", "is_cbdc_new": False, "example_scenario": "Massive DDoS campaign against API gateways to halt CBDC payments nationwide.", "controls": "DDoS mitigation, CDN, traffic scrubbing, auto-scaling, geographic distribution"},
     {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-10", "technique_name": "Double Spending", "cbdc_application": "Exploiting consensus delays for double-spend", "target_layer": "Asset", "stride": "Tampering", "adversaries": "Organised Crime, Nation-State", "is_cbdc_new": True, "example_scenario": "Racing two conflicting transactions during consensus delay window to spend same funds twice.", "controls": "Finality guarantees, consensus speed optimization, double-spend proofs, real-time monitoring"},
-    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-11", "technique_name": "Unauthorized Minting", "cbdc_application": "Exploiting issuance controls to create counterfeit CBDC", "target_layer": "Asset", "stride": "Elevation of Privilege", "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Insider exploiting minting authority access to create unauthorized CBDC tokens.", "controls": "Multi-party authorization, hardware security modules, issuance audit trails, separation of duties"},
+    {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-11", "technique_name": "Unauthorized Minting", "cbdc_application": "Exploiting issuance controls to create counterfeit CBDC", "target_layer": "Asset",, "adversaries": "Nation-State, Malicious Insider", "is_cbdc_new": True, "example_scenario": "Insider exploiting minting authority access to create unauthorized CBDC tokens.", "controls": "Multi-party authorization, hardware security modules, issuance audit trails, separation of duties"},
     {"tactic": "Impact", "tactic_id": "TA0040", "technique_id": "CBDC-NEW-12", "technique_name": "Offline Payment Replay", "cbdc_application": "Replaying offline payment tokens", "target_layer": "Service", "stride": "Spoofing", "adversaries": "End-User Fraud, Organised Crime", "is_cbdc_new": True, "example_scenario": "Copying and replaying offline payment tokens to spend the same value multiple times.", "controls": "Token uniqueness enforcement, reconciliation on reconnect, hardware token storage, expiry mechanisms"},
 ])
 
@@ -1623,7 +1618,7 @@ ADVERSARIES = {
         "capability": 7, "resources": 7, "sophistication": 7, "persistence": 7, "motivation_score": 8,
         "motivation": "Financial gain",
         "primary_targets": ["Asset Layer (double-spend)", "Service Layer (AML bypass)", "Access Layer (wallet theft)"],
-        "stride_focus": ["Spoofing", "Tampering", "Elevation of Privilege"],
+        "stride_focus": ["Spoofing", "Tampering", ],
         "top_components": ["Payment Processor", "AML/CFT Engine", "Wallet Providers"],
         "top_techniques": ["CBDC-NEW-06", "CBDC-NEW-10", "T1566"],
         "example": "Structuring transactions to launder proceeds through CBDC",
@@ -1633,7 +1628,7 @@ ADVERSARIES = {
         "capability": 6, "resources": 4, "sophistication": 5, "persistence": 8, "motivation_score": 6,
         "motivation": "Financial gain / Coercion",
         "primary_targets": ["Platform Layer (KMS)", "Asset Layer (minting)", "Service Layer (admin)"],
-        "stride_focus": ["Repudiation", "Elevation of Privilege", "Information Disclosure"],
+        "stride_focus": ["Information Disclosure"],
         "top_components": ["Key Management Service (KMS)", "Minting Authority", "Smart Contract Runtime"],
         "top_techniques": ["CBDC-NEW-11", "T1098", "T1070"],
         "example": "Abusing privileged access to mint unauthorized CBDC",
@@ -1653,7 +1648,7 @@ ADVERSARIES = {
         "capability": 2, "resources": 1, "sophistication": 2, "persistence": 3, "motivation_score": 4,
         "motivation": "Petty fraud",
         "primary_targets": ["Access Layer (own wallet)", "Service Layer (offline payments)"],
-        "stride_focus": ["Spoofing", "Repudiation"],
+        "stride_focus": ["Spoofing"],
         "top_components": ["Wallet Providers", "Offline Payment Module", "Mobile Apps"],
         "top_techniques": ["CBDC-NEW-12", "T1110", "T1136"],
         "example": "Attempting offline payment replay attacks",
@@ -1676,10 +1671,10 @@ RISK_REGISTER = pd.DataFrame([
     {"risk_id": "R-002", "layer": "Platform", "component": "Consensus Nodes", "threat": "51% attack on consensus mechanism", "stride": "Tampering", "mitre": "CBDC-NEW-04", "adversary": "Nation-State", "likelihood": 1, "impact": 5, "controls": "Permissioned consensus, validator vetting, geographic distribution", "control_effectiveness": 5},
     {"risk_id": "R-003", "layer": "Platform", "component": "Key Management Service (KMS)", "threat": "Private key extraction via side-channel attack", "stride": "Information Disclosure", "mitre": "CBDC-NEW-07", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Side-channel resistant HSMs, key sharding, multi-party computation", "control_effectiveness": 4},
     {"risk_id": "R-004", "layer": "Platform", "component": "Settlement Engine", "threat": "Settlement manipulation causing financial loss", "stride": "Tampering", "mitre": "T1485", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Real-time reconciliation, dual authorization, audit trails", "control_effectiveness": 4},
-    {"risk_id": "R-005", "layer": "Asset", "component": "Minting Authority", "threat": "Unauthorized CBDC minting by insider", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Multi-party authorization, HSM-backed signing, issuance audit trail", "control_effectiveness": 4},
+    {"risk_id": "R-005", "layer": "Asset", "component": "Minting Authority", "threat": "Unauthorized CBDC minting by insider", "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Multi-party authorization, HSM-backed signing, issuance audit trail", "control_effectiveness": 4},
     {"risk_id": "R-006", "layer": "Asset", "component": "Token/Account State", "threat": "Double-spending via consensus delay exploitation", "stride": "Tampering", "mitre": "CBDC-NEW-10", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Finality guarantees, double-spend proofs, real-time monitoring", "control_effectiveness": 3},
     {"risk_id": "R-007", "layer": "Asset", "component": "UTXO Store", "threat": "UTXO replay attack causing double-spend", "stride": "Tampering", "mitre": "CBDC-NEW-10", "adversary": "Organised Crime", "likelihood": 2, "impact": 4, "controls": "Nonce enforcement, state validation, transaction ordering", "control_effectiveness": 4},
-    {"risk_id": "R-008", "layer": "Asset", "component": "Asset Lifecycle Manager", "threat": "Lifecycle bypass allowing counterfeit tokens", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Lifecycle state machine enforcement, separation of duties, code review", "control_effectiveness": 3},
+    {"risk_id": "R-008", "layer": "Asset", "component": "Asset Lifecycle Manager", "threat": "Lifecycle bypass allowing counterfeit tokens",, "mitre": "CBDC-NEW-11", "adversary": "Malicious Insider", "likelihood": 2, "impact": 5, "controls": "Lifecycle state machine enforcement, separation of duties, code review", "control_effectiveness": 3},
     {"risk_id": "R-009", "layer": "Service", "component": "Payment Processor", "threat": "Transaction routing manipulation for fraud", "stride": "Tampering", "mitre": "T1036", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Transaction integrity checks, behavioral analytics, real-time monitoring", "control_effectiveness": 3},
     {"risk_id": "R-010", "layer": "Service", "component": "AML/CFT Engine", "threat": "AML threshold evasion via transaction structuring", "stride": "Tampering", "mitre": "CBDC-NEW-06", "adversary": "Organised Crime", "likelihood": 4, "impact": 3, "controls": "Aggregate monitoring, graph analytics, adaptive thresholds, velocity checks", "control_effectiveness": 3},
     {"risk_id": "R-011", "layer": "Service", "component": "Smart Contract Runtime", "threat": "Reentrancy exploit draining escrow funds", "stride": "Tampering", "mitre": "CBDC-NEW-02", "adversary": "Organised Crime", "likelihood": 3, "impact": 4, "controls": "Formal verification, reentrancy guards, contract auditing, deployment approvals", "control_effectiveness": 4},
@@ -1695,7 +1690,7 @@ RISK_REGISTER = pd.DataFrame([
     {"risk_id": "R-021", "layer": "Access", "component": "Wallet Providers", "threat": "Brute force attack on wallet PINs", "stride": "Spoofing", "mitre": "T1110", "adversary": "End-User Fraud", "likelihood": 3, "impact": 2, "controls": "Account lockout, rate limiting, biometric auth, hardware tokens", "control_effectiveness": 4},
     {"risk_id": "R-022", "layer": "Service", "component": "Payment Processor", "threat": "Masquerading attack transactions as legitimate payments", "stride": "Spoofing", "mitre": "T1036", "adversary": "Organised Crime", "likelihood": 3, "impact": 3, "controls": "Behavioral analytics, transaction pattern analysis, anomaly detection", "control_effectiveness": 3},
     {"risk_id": "R-023", "layer": "Access", "component": "KYC/IAM System", "threat": "Bulk extraction of PII from KYC database", "stride": "Information Disclosure", "mitre": "T1119", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Data loss prevention, query rate limiting, database activity monitoring, encryption", "control_effectiveness": 4},
-    {"risk_id": "R-024", "layer": "Platform", "component": "Consensus Nodes", "threat": "Cross-tier pivot from retail to wholesale network", "stride": "Elevation of Privilege", "mitre": "CBDC-NEW-08", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture", "control_effectiveness": 4},
+    {"risk_id": "R-024", "layer": "Platform", "component": "Consensus Nodes", "threat": "Cross-tier pivot from retail to wholesale network",, "mitre": "CBDC-NEW-08", "adversary": "Nation-State", "likelihood": 2, "impact": 5, "controls": "Air-gapped tier separation, strict firewall rules, zero-trust architecture", "control_effectiveness": 4},
     {"risk_id": "R-025", "layer": "Access", "component": "Aggregators", "threat": "Supply chain compromise of aggregator APIs", "stride": "Tampering", "mitre": "T1190", "adversary": "Compromised Third-Party", "likelihood": 3, "impact": 3, "controls": "API security testing, vendor assessments, input validation, WAF", "control_effectiveness": 3},
 ])
 RISK_REGISTER["inherent_risk"] = RISK_REGISTER["likelihood"] * RISK_REGISTER["impact"]
@@ -1732,8 +1727,8 @@ TACTIC_ORDER = [
 ]
 
 STRIDE_CATEGORIES = [
-    "Spoofing", "Tampering", "Repudiation",
-    "Information Disclosure", "Denial of Service", "Elevation of Privilege",
+    "Spoofing", "Tampering",
+    "Information Disclosure", "Denial of Service",
 ]
 
 CONTROLS_FRAMEWORK = {
@@ -1767,7 +1762,7 @@ CONTROLS_FRAMEWORK = {
         "iso27001": {"domain": "A.13 Communications Security, A.17 Business Continuity", "controls": "A.13.1.1 Network controls, A.17.1.1 Planning information security continuity, A.17.2.1 Availability of facilities"},
         "cbdc_specific": {"asap_controls": "Access Layer: API gateway rate limiting, CDN; Platform Layer: consensus resilience, node redundancy", "operational": "Capacity planning for national payment volumes, graceful degradation, offline payment fallback"},
     },
-    "Elevation of Privilege": {
+    : {
         "mitre_controls": "Least privilege, RBAC, tier isolation, zero-trust architecture, privileged access management",
         "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control, PR.PT - Protective Technology", "controls": "PR.AC-4: Access permissions managed, PR.AC-6: Identity proofing, PR.PT-3: Least functionality principle"},
         "iso27001": {"domain": "A.9 Access Control, A.6 Organization of Information Security", "controls": "A.9.2.3 Privileged access management, A.9.4.1 Information access restriction, A.6.1.2 Segregation of duties"},
