@@ -1434,7 +1434,7 @@ COMPONENT_DETAILS = {
         "layer": "Platform", "tier": "Central Bank",
         "functions": "Generates, stores, rotates, and manages cryptographic keys for signing and encryption.",
         "attack_surface": "Key extraction via side-channel, insider theft, HSM bypass, weak key generation.",
-        "stride": ["Information Disclosure", , "Tampering"],
+        "stride": ["Information Disclosure", "Tampering"],
         "mitre": ["CBDC-NEW-07", "T1068"],
         "connected": ["Core Ledger", "Minting Authority", "Wallet Providers"],
     },
