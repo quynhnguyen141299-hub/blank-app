@@ -1756,7 +1756,7 @@ CONTROLS_FRAMEWORK = {
         "iso27001": {"domain": "A.13 Communications Security, A.17 Business Continuity", "controls": "A.13.1.1 Network controls, A.17.1.1 Planning information security continuity, A.17.2.1 Availability of facilities"},
         "cbdc_specific": {"asap_controls": "Access Layer: API gateway rate limiting, CDN; Platform Layer: consensus resilience, node redundancy", "operational": "Capacity planning for national payment volumes, graceful degradation, offline payment fallback"},
     },
-    {
+    {:
         "mitre_controls": "Least privilege, RBAC, tier isolation, zero-trust architecture, privileged access management",
         "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control, PR.PT - Protective Technology", "controls": "PR.AC-4: Access permissions managed, PR.AC-6: Identity proofing, PR.PT-3: Least functionality principle"},
         "iso27001": {"domain": "A.9 Access Control, A.6 Organization of Information Security", "controls": "A.9.2.3 Privileged access management, A.9.4.1 Information access restriction, A.6.1.2 Segregation of duties"},
