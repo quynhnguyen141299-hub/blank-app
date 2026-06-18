@@ -284,7 +284,6 @@ else:
         "stride_tampering": pd.Series(dtype="int64"),
         "stride_information_disclosure": pd.Series(dtype="int64"),
         "stride_denial_of_service": pd.Series(dtype="int64"),
-        "stride_elevation_of_privilege": pd.Series(dtype="int64"),
         "stride_count": pd.Series(dtype="int64"),
     }
     _empty_df = pd.DataFrame(_empty_cols)
@@ -1744,12 +1743,7 @@ CONTROLS_FRAMEWORK = {
         "iso27001": {"domain": "A.12 Operations Security, A.14 System Development", "controls": "A.12.4.1 Event logging, A.14.2.4 Restrictions on changes, A.14.1.2 Securing application services"},
         "cbdc_specific": {"asap_controls": "Platform Layer: consensus integrity checks, ledger hash verification; Asset Layer: double-spend proofs, state validation", "operational": "Real-time transaction integrity monitoring, automated reconciliation, smart contract auditing"},
     },
-    "Repudiation": {
-        "mitre_controls": "Immutable audit trails, digital signatures, non-repudiation logging, timestamping",
-        "nist_csf": {"function": "Protect (PR), Detect (DE)", "category": "PR.PT - Protective Technology, DE.AE - Anomalies and Events", "controls": "PR.PT-1: Audit/log records, DE.AE-3: Event data aggregation, DE.AE-5: Incident alert thresholds"},
-        "iso27001": {"domain": "A.12 Operations Security", "controls": "A.12.4.1 Event logging, A.12.4.2 Protection of log information, A.12.4.3 Administrator and operator logs"},
-        "cbdc_specific": {"asap_controls": "Platform Layer: write-once ledger, cryptographic timestamping; Service Layer: transaction receipts with digital signatures", "operational": "Tamper-evident logging, regulatory compliance reporting, dispute resolution trails"},
-    },
+
     "Information Disclosure": {
         "mitre_controls": "Encryption at rest and transit, data masking, zero-knowledge proofs, secure enclaves",
         "nist_csf": {"function": "Protect (PR)", "category": "PR.DS - Data Security, PR.IP - Information Protection", "controls": "PR.DS-1: Data at rest protection, PR.DS-2: Data in transit protection, PR.DS-5: Protections against data leaks"},
