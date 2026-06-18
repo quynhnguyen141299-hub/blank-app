@@ -1733,34 +1733,70 @@ STRIDE_CATEGORIES = [
 CONTROLS_FRAMEWORK = {
     "Spoofing": {
         "mitre_controls": "MFA, certificate pinning, wallet attestation, biometric authentication",
-        "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control", "controls": "PR.AC-1: Identity management, PR.AC-3: Remote access management, PR.AC-7: Device authentication"},
-        "iso27001": {"domain": "A.9 Access Control", "controls": "A.9.2.1 User registration, A.9.4.2 Secure log-on procedures, A.9.2.3 Privileged access management"},
-        "cbdc_specific": {"asap_controls": "Access Layer: wallet-level biometric auth, API mutual TLS, KYC re-verification triggers", "operational": "Real-time identity verification, behavioral biometrics, device fingerprinting"},
+        "nist_csf": {
+            "function": "Protect (PR)",
+            "category": "PR.AC - Access Control",
+            "controls": "PR.AC-1: Identity management, PR.AC-3: Remote access management, PR.AC-7: Device authentication"
+        },
+        "iso27001": {
+            "domain": "A.9 Access Control",
+            "controls": "A.9.2.1 User registration, A.9.4.2 Secure log-on procedures, A.9.2.3 Privileged access management"
+        },
+        "cbdc_specific": {
+            "asap_controls": "Access Layer: wallet-level biometric auth, API mutual TLS, KYC re-verification triggers",
+            "operational": "Real-time identity verification, behavioral biometrics, device fingerprinting"
+        },
     },
+
     "Tampering": {
         "mitre_controls": "Integrity monitoring, immutable audit logs, formal verification, code signing",
-        "nist_csf": {"function": "Protect (PR), Detect (DE)", "category": "PR.DS - Data Security, DE.CM - Continuous Monitoring", "controls": "PR.DS-6: Integrity checking mechanisms, DE.CM-3: Personnel activity monitoring, DE.CM-7: Monitoring for unauthorized entities"},
-        "iso27001": {"domain": "A.12 Operations Security, A.14 System Development", "controls": "A.12.4.1 Event logging, A.14.2.4 Restrictions on changes, A.14.1.2 Securing application services"},
-        "cbdc_specific": {"asap_controls": "Platform Layer: consensus integrity checks, ledger hash verification; Asset Layer: double-spend proofs, state validation", "operational": "Real-time transaction integrity monitoring, automated reconciliation, smart contract auditing"},
+        "nist_csf": {
+            "function": "Protect (PR), Detect (DE)",
+            "category": "PR.DS - Data Security, DE.CM - Continuous Monitoring",
+            "controls": "PR.DS-6: Integrity checking mechanisms, DE.CM-3: Personnel activity monitoring, DE.CM-7: Monitoring for unauthorized entities"
+        },
+        "iso27001": {
+            "domain": "A.12 Operations Security, A.14 System Development",
+            "controls": "A.12.4.1 Event logging, A.14.2.4 Restrictions on changes, A.14.1.2 Securing application services"
+        },
+        "cbdc_specific": {
+            "asap_controls": "Platform Layer: consensus integrity checks, ledger hash verification; Asset Layer: double-spend proofs, state validation",
+            "operational": "Real-time transaction integrity monitoring, automated reconciliation, smart contract auditing"
+        },
     },
 
     "Information Disclosure": {
         "mitre_controls": "Encryption at rest and transit, data masking, zero-knowledge proofs, secure enclaves",
-        "nist_csf": {"function": "Protect (PR)", "category": "PR.DS - Data Security, PR.IP - Information Protection", "controls": "PR.DS-1: Data at rest protection, PR.DS-2: Data in transit protection, PR.DS-5: Protections against data leaks"},
-        "iso27001": {"domain": "A.10 Cryptography, A.13 Communications Security", "controls": "A.10.1.1 Cryptographic controls policy, A.13.1.1 Network controls, A.13.2.1 Information transfer policies"},
-        "cbdc_specific": {"asap_controls": "Access Layer: end-to-end encrypted wallet comms, PII minimization; Platform Layer: key sharding, HSM isolation", "operational": "Privacy-preserving analytics, differential privacy for transaction data, data classification"},
+        "nist_csf": {
+            "function": "Protect (PR)",
+            "category": "PR.DS - Data Security, PR.IP - Information Protection",
+            "controls": "PR.DS-1: Data at rest protection, PR.DS-2: Data in transit protection, PR.DS-5: Protections against data leaks"
+        },
+        "iso27001": {
+            "domain": "A.10 Cryptography, A.13 Communications Security",
+            "controls": "A.10.1.1 Cryptographic controls policy, A.13.1.1 Network controls, A.13.2.1 Information transfer policies"
+        },
+        "cbdc_specific": {
+            "asap_controls": "Access Layer: end-to-end encrypted wallet comms, PII minimization; Platform Layer: key sharding, HSM isolation",
+            "operational": "Privacy-preserving analytics, differential privacy for transaction data, data classification"
+        },
     },
+
     "Denial of Service": {
         "mitre_controls": "DDoS mitigation, rate limiting, auto-scaling, circuit breakers, geographic distribution",
-        "nist_csf": {"function": "Protect (PR), Respond (RS)", "category": "PR.PT - Protective Technology, RS.MI - Mitigation", "controls": "PR.PT-4: Communications protection, RS.MI-1: Incidents are contained, RS.MI-2: Incidents are mitigated"},
-        "iso27001": {"domain": "A.13 Communications Security, A.17 Business Continuity", "controls": "A.13.1.1 Network controls, A.17.1.1 Planning information security continuity, A.17.2.1 Availability of facilities"},
-        "cbdc_specific": {"asap_controls": "Access Layer: API gateway rate limiting, CDN; Platform Layer: consensus resilience, node redundancy", "operational": "Capacity planning for national payment volumes, graceful degradation, offline payment fallback"},
-    },
-    {:
-        "mitre_controls": "Least privilege, RBAC, tier isolation, zero-trust architecture, privileged access management",
-        "nist_csf": {"function": "Protect (PR)", "category": "PR.AC - Access Control, PR.PT - Protective Technology", "controls": "PR.AC-4: Access permissions managed, PR.AC-6: Identity proofing, PR.PT-3: Least functionality principle"},
-        "iso27001": {"domain": "A.9 Access Control, A.6 Organization of Information Security", "controls": "A.9.2.3 Privileged access management, A.9.4.1 Information access restriction, A.6.1.2 Segregation of duties"},
-        "cbdc_specific": {"asap_controls": "Service Layer: strict tier boundary enforcement, multi-party authorization for minting; Platform Layer: validator role separation", "operational": "Separation of duties for issuance, hardware-enforced access controls, regular privilege reviews"},
+        "nist_csf": {
+            "function": "Protect (PR), Respond (RS)",
+            "category": "PR.PT - Protective Technology, RS.MI - Mitigation",
+            "controls": "PR.PT-4: Communications protection, RS.MI-1: Incidents are contained, RS.MI-2: Incidents are mitigated"
+        },
+        "iso27001": {
+            "domain": "A.13 Communications Security, A.17 Business Continuity",
+            "controls": "A.13.1.1 Network controls, A.17.1.1 Planning information security continuity, A.17.2.1 Availability of facilities"
+        },
+        "cbdc_specific": {
+            "asap_controls": "Access Layer: API gateway rate limiting, CDN; Platform Layer: consensus resilience, node redundancy",
+            "operational": "Capacity planning for national payment volumes, graceful degradation, offline payment fallback"
+        },
     },
 }
 
