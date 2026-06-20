@@ -1864,9 +1864,9 @@ with tab8:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 9: Threat Catalogue & Controls
+# TAB 8: Threat Catalogue & Controls
 # ═══════════════════════════════════════════════════════════════════════════
-with tab9:
+with tab8:
     st.header("Threat Catalogue & Controls")
     st.write(
         "Simulation-driven threat catalogue with multi-framework control mappings. "
