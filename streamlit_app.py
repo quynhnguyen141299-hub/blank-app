@@ -344,12 +344,11 @@ elif not has_csv:
 # ═══════════════════════════════════════════════════════════════════════════
 # TABS
 # ═══════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
     [
         "System Overview",
         "Agent Behavior",
         "Detection Lab",
-        "Attack Replay",
         "Network Graph",
         "Agent Strategy",
         "CBDC Architecture",
