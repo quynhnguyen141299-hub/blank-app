@@ -344,11 +344,12 @@ elif not has_csv:
 # ═══════════════════════════════════════════════════════════════════════════
 # TABS
 # ═══════════════════════════════════════════════════════════════════════════
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(
     [
         "System Overview",
         "Agent Behavior",
         "Detection Lab",
+        "Attack Replay",
         "Network Graph",
         "Agent Strategy",
         "CBDC Architecture",
@@ -806,6 +807,70 @@ with tab3:
                 "scikit-learn is required for ML anomaly scoring. "
                 "Add `scikit-learn` to your requirements.txt and redeploy."
             )
+
+
+# ─── TAB 4: Threat Intelligence (original) ───────────────────────────────
+with tab4:
+    stride_exploded = attack_df.explode("stride_tags")
+    stride_exploded = stride_exploded[stride_exploded["stride_tags"].notna()]
+
+    left, right = st.columns(2)
+    with left:
+        if stride_exploded.empty:
+            st.info("No STRIDE tags were found in the filtered rows.")
+        else:
+            stride_counts = (
+                stride_exploded["stride_tags"].value_counts().reset_index()
+            )
+            stride_counts.columns = ["stride_tag", "count"]
+            fig = px.bar(
+                stride_counts,
+                x="stride_tag",
+                y="count",
+                title="Overall STRIDE Distribution",
+                color="stride_tag",
+                color_discrete_map=STRIDE_COLOURS,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    with right:
+        if stride_exploded.empty:
+            st.empty()
+        else:
+            per_agent_stride = (
+                stride_exploded[stride_exploded["agent_id"].isin(RL_AGENTS)]
+                .groupby(["agent_id", "stride_tags"])
+                .size()
+                .reset_index(name="count")
+            )
+            fig = px.bar(
+                per_agent_stride,
+                x="agent_id",
+                y="count",
+                color="stride_tags",
+                barmode="group",
+                title="STRIDE Preference by Agent",
+                color_discrete_map=STRIDE_COLOURS,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Quick narrative")
+    if stride_exploded.empty:
+        st.write("No STRIDE evidence is available under the current filters.")
+    else:
+        top_stride = stride_exploded["stride_tags"].value_counts().idxmax()
+        top_agent_series = attack_df[attack_df["agent_id"].isin(RL_AGENTS)][
+            "agent_id"
+        ].value_counts()
+        top_agent = (
+            top_agent_series.idxmax() if not top_agent_series.empty else "n/a"
+        )
+        st.write(
+            f"The dominant threat pattern in the current view is **{top_stride}**, "
+            f"and the most active RL agent is **{top_agent}**. "
+            "That gives you a quick read on whether your simulated attacker "
+            "population is leaning toward tampering, disclosure, or resource abuse."
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1864,9 +1929,9 @@ with tab8:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 8: Threat Catalogue & Controls
+# TAB 9: Threat Catalogue & Controls
 # ═══════════════════════════════════════════════════════════════════════════
-with tab8:
+with tab9:
     st.header("Threat Catalogue & Controls")
     st.write(
         "Simulation-driven threat catalogue with multi-framework control mappings. "
@@ -2369,10 +2434,11 @@ with tab8:
     st.markdown(f"**Recommended Controls:** {tech_row['controls']}")
 
 
+
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 8: Risk Register
+# TAB 11: Risk Register
 # ═══════════════════════════════════════════════════════════════════════════
-with tab8:
+with tab11:
     st.header("Risk Register — Quantitative Risk Assessment")
     st.write(
         "Comprehensive risk register with **25 risk entries** covering all 4 ASAP layers. "
@@ -2563,3 +2629,5 @@ st.caption(
     "Run with: `streamlit run streamlit_app.py`  |  "
     "Upload the `cbdc_logs.csv` exported from your notebook."
 )
+
+#raw source code
