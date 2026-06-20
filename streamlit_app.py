@@ -2371,9 +2371,9 @@ with tab9:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# TAB 11: Risk Register
+# TAB 9: Risk Register
 # ═══════════════════════════════════════════════════════════════════════════
-with tab11:
+with tab9:
     st.header("Risk Register — Quantitative Risk Assessment")
     st.write(
         "Comprehensive risk register with **25 risk entries** covering all 4 ASAP layers. "
